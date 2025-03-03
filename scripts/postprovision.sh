@@ -5,7 +5,7 @@
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
 
 
-if [[ "${WITH_AUTHENTICATION-}" =~ "true" ]]; then
+if [[ "${USE_AUTHENTICATION-}" =~ "true" ]]; then
     printf "  \033[32m➜\033[0m Authentication is enabled updating login callback...\n"
 
     redirect_uri="$SERVICE_FRONTEND_URL/.auth/login/aad/callback"

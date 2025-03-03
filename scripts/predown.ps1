@@ -9,7 +9,7 @@ if ($env:DEBUG -match '^(1|yes|true)$') {
 # Typically: preparing additional environment variables, creating app registrations, etc.
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
 
-if ($env:WITH_AUTHENTICATION -eq "true") {
+if ($env:USE_AUTHENTICATION -eq "true") {
     Write-Host "    ➜ " -ForegroundColor Green -NoNewline
     Write-Host "Authentication was enabled deleting app registration..."
 

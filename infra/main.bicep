@@ -48,7 +48,7 @@ param applicationInsightsName string = ''
 param appInsightsLocation string = location
 
 @description('Activate authentication if true. Defaults to false.')
-param withAuthentication bool = false
+param useAuthentication bool = false
 
 @description('Optional. Defines the SKU of an Azure AI Search Service, which determines price tier and capacity limits.')
 @allowed([
@@ -432,7 +432,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
         roleDefinitionIdOrName: 'Key Vault Administrator'
       }
     ]
-    secrets: withAuthentication && authClientSecret != ''
+    secrets: useAuthentication && authClientSecret != ''
       ? [
           {
             name: authClientSecretName
@@ -478,7 +478,7 @@ module frontendApp 'modules/app/container-apps.bicep' = {
       // Required for managed identity
       AZURE_CLIENT_ID: frontendIdentity.outputs.clientId
     }
-    keyvaultIdentities: withAuthentication
+    keyvaultIdentities: useAuthentication
       ? {
           'microsoft-provider-authentication-secret': {
             keyVaultUrl: '${keyVault.outputs.uri}secrets/${authClientSecretName}'
@@ -489,7 +489,7 @@ module frontendApp 'modules/app/container-apps.bicep' = {
   }
 }
 
-module frontendContainerAppAuth 'modules/app/container-apps-auth.bicep' = if (withAuthentication) {
+module frontendContainerAppAuth 'modules/app/container-apps-auth.bicep' = if (useAuthentication) {
   name: 'frontend-container-app-auth-module'
   params: {
     name: frontendApp.outputs.name
@@ -580,7 +580,7 @@ output SERVICE_BACKEND_URL string = backendApp.outputs.URL
 /* ------------------------ Authentication & RBAC -------------------------- */
 
 @description('Activate authentication if true')
-output WITH_AUTHENTICATION bool = withAuthentication
+output USE_AUTHENTICATION bool = useAuthentication
 
 @description('ID of the tenant we are deploying to')
 output AZURE_AUTH_TENANT_ID string = authTenantId

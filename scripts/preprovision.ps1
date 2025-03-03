@@ -4,7 +4,7 @@ if ($env:DEBUG -match '^1|yes|true$') {
     Set-PSDebug -Trace 2
 }
 
-if ($env:WITH_AUTHENTICATION -match "true") {
+if ($env:USE_AUTHENTICATION -match "true") {
     Write-Host "    ➜ " -ForegroundColor Green -NoNewline
     Write-Host "Authentication is enabled creating app registration..."
 

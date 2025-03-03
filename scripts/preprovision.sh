@@ -6,7 +6,7 @@ set -euo pipefail
 # Typically: preparing additional environment variables, creating app registrations, etc.
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
 
-if [[ "${WITH_AUTHENTICATION-}" =~ "true" ]]; then
+if [[ "${USE_AUTHENTICATION-}" =~ "true" ]]; then
     printf "  \033[32m➜\033[0m Authentication is enabled creating app registration...\n"
 
     if [ -z "${AZURE_AUTH_TENANT_ID-}" ]; then

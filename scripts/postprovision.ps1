@@ -4,7 +4,7 @@
 # Typically: loading data in databases, AI Search or storage accounts, etc.
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
 
-if ($env:WITH_AUTHENTICATION -match "true") {
+if ($env:USE_AUTHENTICATION -match "true") {
     Write-Host "  ➜ " -ForegroundColor Green -NoNewline
     Write-Host "Authentication is enabled updating login callback..."
 
