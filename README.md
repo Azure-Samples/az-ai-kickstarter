@@ -25,8 +25,8 @@ This respository has been configured to support GitHub Codespace and DevContaine
 
 ### Local
 
-It is possible to work with a fully local setup.
-
+It is possible to work with a fully local setup. Here are the required dependencies 
+(see below for installation instructions):
   - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/what-is-azure-cli): `az`
   - [Azure Developer CLI](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/overview): `azd`
   - [Python](https://www.python.org/about/gettingstarted/): `python`
@@ -40,23 +40,48 @@ It is possible to work with a fully local setup.
 
 ### Quick deploy
 
-
 #### Deployment pre-requisites
 
 Codespaces and DevContainer come with all deployment and development pre-requisites already installed.
 
+##### On Windows PowerShell
+
 On Windows you can install the pre-requisites by executing the following commands in a PowerShell terminal:
 ```powershell
-	winget install Python.Python.3.12
-	winget install Microsoft.PowerShell
-	winget install Microsoft.AzureCLI
-	winget install Microsoft.Azd
-	winget install Microsoft.Git
+winget install Python.Python.3.12
+winget install Microsoft.PowerShell
+winget install Microsoft.AzureCLI
+winget install Microsoft.Azd
+winget install Microsoft.Git
 ```
 
-Ubuntu/WSL: TBD
+Install `uv` following the installation instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
 
-MacOSX: TBD
+##### Ubuntu/WSL
+
+Install `uv` following the installation instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+##### MacOSX:
+
+On MacOS you can install the dependencies with [HomeBrew](https://brew.sh/):
+```bash
+brew install python
+brew install azure-cli
+brew tap azure/azure-dev # Add the Azure Dev tap if not already added
+brew install azure-dev
+brew install git
+```
+
+Install `uv` following the installation instructions [here](https://docs.astral.sh/uv/getting-started/installation/):
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
 
 #### Deploy with authentication disabled
 
@@ -69,12 +94,12 @@ azd up
 
 AZD can automatically configures authentication to secure frontend and/or backend. To do so execute the following command before `azd up`:
 ```bash
-azd env set WITH_AUTHENTICATION true
+azd env set USE_AUTHENTICATION true
 ```
 
 If you already executed `azd up` just set the variable and run provisioning again:
 ```bash
-azd env set WITH_AUTHENTICATION true
+azd env set USE_AUTHENTICATION true
 azd provision
 ```
 
@@ -83,12 +108,44 @@ azd provision
 
 ## How it works
 
-- TODO: How to run backend locally
-- TODO: How to run frontend locally
+### Running the frontend locally
+
+```bash
+cd src/frontend
+uv sync
+uv run streamlit app.py
+```
+
+### Running the backend locally
+
+  ```bash
+  # Sync Python dependencies
+  uv sync
+  # Start the backend server with live reloading
+  uv run uvicorn app:app --reload
+  ```
 
 ### User Manual
 
-- TODO : Observability
+
+- TODO: Observability
+
+#### Accessing logs of Azure Container Apps
+
+If you need to troubleshoot and access the logs of the containers running in Azure Container 
+apps you can use this helper script (`bash` only). It will connect to Azure remotely and 
+stream the logs to your local terminal.
+
+
+For the Frontend:
+```bash
+./scripts/aca_log.sh frontend
+```
+
+For the Backend:
+```bash
+./scripts/aca_log.sh backend
+```
 
 > [!TIP] 
 > **Az AI Tip**: Document how the solution is used and operated here.
