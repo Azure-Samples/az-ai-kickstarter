@@ -153,7 +153,7 @@ def create_agent_from_yaml(kernel, service_id, definition_file_path, reasoning_e
             settings.reasoning_effort = reasoning_effort
             
         agent = ChatCompletionAgent(
-            service_id=service_id,
+            service=kernel.get_service(service_id=service_id),
             kernel=kernel,
             arguments=KernelArguments(settings=settings),
             name=definition['name'],

@@ -33,3 +33,8 @@ Synchronised with the [AZ AI Generator](https://github.com/dbroeglin/generator-a
 ### Changed
 - Upgraded to SK 1.20.0
 - It is possible to reference the externally provisioned OpenAI service (planner service only)
+
+## [0.5.3] - 2025-03-03
+
+### Changed
+- Upgraded to SK 1.22.1
