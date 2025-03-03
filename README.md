@@ -127,7 +127,7 @@ uv run streamlit app.py
 
 ### User Manual
 
-
+To access AI Traces go to https://ai.azure.com
 - TODO: Observability
 
 #### Accessing logs of Azure Container Apps
@@ -139,12 +139,12 @@ stream the logs to your local terminal.
 
 For the Frontend:
 ```bash
-./scripts/aca_log.sh frontend
+./scripts/aca_logs.sh frontend
 ```
 
 For the Backend:
 ```bash
-./scripts/aca_log.sh backend
+./scripts/aca_logs.sh backend
 ```
 
 > [!TIP] 
