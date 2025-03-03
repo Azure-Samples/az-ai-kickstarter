@@ -127,8 +127,13 @@ uv run streamlit app.py
 
 ### User Manual
 
-To access AI Traces go to https://ai.azure.com
-- TODO: Observability
+To access AI Traces go to https://ai.azure.com and select the "Tracing" menu:
+<img src="doc/images/tracing-menu.png" alt="Azure AI Foundry Portal Tracing Menu" width="800">
+
+If you click on one of the traces you will see a detailed view with every agent,
+prompt, etc.:
+<img src="doc/images/tracing.png" alt="Azure AI Foundry Portal Trace Detail" width="800">
+
 
 #### Accessing logs of Azure Container Apps
 
@@ -146,6 +151,9 @@ For the Backend:
 ```bash
 ./scripts/aca_logs.sh backend
 ```
+
+Logs will be streamed to your terminal:
+<img src="doc/images/logging.png" alt="Semantic Kernel Logs" width="800">
 
 > [!TIP] 
 > **Az AI Tip**: Document how the solution is used and operated here.
@@ -168,15 +176,31 @@ export aoaikeysecret="key"
 
 ### Architecture
 
-```mermaid
-architecture-beta
-    group solution(cloud)[Solution]
+#### Overall architecture with Infrasturcture and hosting components
 
-    service frontend(server)[Frontend] in solution
-    service backend(server)[Backend] in solution
+The highlevel architecture for the Kickstarter is:
+<img src="doc/images/arch-infra.png" alt="High level Kickstarter architecture - infra view" width="800">
 
-    frontend:R --> L:backend
-```
+The cognitive architecture of the application is composed of Semantic Kernel's 
+
+#### Cognitive architecture
+
+This architecture implements a **Debate Pattern** leveraging the **Semantic Kernel's agent framework**, which creates a dynamic environment where multiple AI agents collaborate to refine ideas, test arguments, or reach a resolution. Below is a description of the essential components and their interactions in the architecture:
+
+The core components are:
+   - **Speaker Selection Strategy** (Green Box):
+     - This component determines which agent (WRITER or CRITIC) "speaks" next.
+     - It ensures productive collaboration by regulating the flow of interaction between the agents and preventing redundant actions.
+   - **WRITER Agent**: provides the initial proposal or subsequent contributions that may evolve based on critique.
+   - **CRITIC Agent**: evaluates and provides constructive criticism of the content or arguments presented by the WRITER agent. It offers counterpoints, highlights flaws, or suggests improvements to refine the proposals made by the WRITER.
+   - **Chat Termination Strategy** (Red Box):
+     - This component decides when the debate or conversation has reached a satisfactory conclusion.
+
+   Both agents operate in a conversational loop where the CRITIC responds to the WRITER's output, and the WRITER iteratively refines its answers based on the CRITIC's feedback. 
+
+Semantic Kernel powers the agents with features like prompt engineering, memory recall, and logic orchestration.
+
+<img src="doc/images/arch-app.png" alt="Kickstarter cognitive architecture - app view" width="800">
 
 ## Code of Conduct
 
