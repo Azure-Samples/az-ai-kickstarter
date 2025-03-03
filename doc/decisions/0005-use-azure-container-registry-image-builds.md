@@ -8,17 +8,32 @@ In review
 
 ## Context
 
-<!-- The issue motivating this decision, and any context that influences or constrains the decision. -->
 Not everyone has a local _Docker_ environment. Through AZD we have two easy options in building container images: 
 1. Local [Docker](https://www.docker.com/) build of the images
 2. Remote [Azure Container Registry](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-tutorial-quick-task) build.
 
+Some images can get quite big, building them online avoids a long wait while pushing the newly built image for the first time
+
 ## Decision
 
-<!-- The change that we're proposing or have agreed to implement. -->
-TODO
+By default build the containers remotely to make things as simple as possible.
+To build locally, just comment the line in `azure.yaml`:
+```yaml
+# see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-schema
+name: az-ai-kickstarter
+metadata:
+  template: dbroeglin/generator-az-ai@0.0.10
+services:
+  backend:
+    language: python
+    project: src/backend
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+#      remoteBuild: true
+```
+
 
 ## Consequences
 
-<!-- What becomes easier or more difficult to do and any risks introduced by the change that will need to be mitigated. -->
-TODO
+Build happens by default remotely. To get back to local building comment the line in `azure.yaml`
