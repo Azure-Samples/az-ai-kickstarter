@@ -1,4 +1,4 @@
-# AI Application chassis - best AI app practices optimized for Azure
+# AI Applications Chassis - AI Apps Best Practices Tailored for Azure
 
 ToC: [**USER STORY**](#user-story) \| [**GETTING STARTED**](#getting-started)  \| [**HOW IT WORKS**](#how-it-works)
 
