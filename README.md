@@ -1,4 +1,4 @@
-# AI Application chassis - best AI app practices optimized for Azure
+# AI Applications Chassis - AI Apps Best Practices Tailored for Azure
 
 ToC: [**USER STORY**](#user-story) \| [**GETTING STARTED**](#getting-started)  \| [**HOW IT WORKS**](#how-it-works)
 
@@ -6,10 +6,7 @@ ToC: [**USER STORY**](#user-story) \| [**GETTING STARTED**](#getting-started)  \
 
 ### Azure AI App Kickstarter overview
 
-An opinionated set of best practices and patterns to bootstrap your Multi Agent application in minutes.
-
-
-
+L100 level aplication stub for an AI copilot/agent.
 
 ## Getting Started
 
@@ -130,8 +127,10 @@ uv run streamlit app.py
 
 ### User Manual
 
-The AI Traces you will be able to find in AI Foundry Project under "Tracing".
-If you click on one of the traces you will see a detailed history view with every agent,
+To access AI Traces go to https://ai.azure.com and select the "Tracing" menu:
+<img src="doc/images/tracing-menu.png" alt="Azure AI Foundry Portal Tracing Menu" width="800">
+
+If you click on one of the traces you will see a detailed view with every agent,
 prompt, etc.:
 <img src="doc/images/tracing.png" alt="Azure AI Foundry Portal Trace Detail" width="800">
 
@@ -177,24 +176,27 @@ export aoaikeysecret="key"
 
 ### Architecture
 
-#### High level Infrasturcture Architechture
+#### Overall architecture with Infrasturcture and hosting components
 
 The highlevel architecture for the Kickstarter is:
 <img src="doc/images/arch-infra.png" alt="High level Kickstarter architecture - infra view" width="800">
 
+The cognitive architecture of the application is composed of Semantic Kernel's 
+
 #### Cognitive architecture
 
-This architecture implements a **Debate Pattern** leveraging the **Semantic Kernel's agent framework**, which creates a dynamic environment where multiple AI agents collaborate to refine ideas, test arguments, or reach a resolution.
+This architecture implements a **Debate Pattern** leveraging the **Semantic Kernel's agent framework**, which creates a dynamic environment where multiple AI agents collaborate to refine ideas, test arguments, or reach a resolution. Below is a description of the essential components and their interactions in the architecture:
 
-The core architecture components based on Semantic Kernel abstractions:
-
+The core components are:
    - **Speaker Selection Strategy** (Green Box):
      - This component determines which agent (WRITER or CRITIC) "speaks" next.
      - It ensures productive collaboration by regulating the flow of interaction between the agents and preventing redundant actions.
-   - **WRITER Agent**: provides the initial proposal and the subsequent revisions following the direction from critic.
-   - **CRITIC Agent**: evaluates the text and provides constructive feedback to drive readibility and popularity of the post. Provides scoring across a number of categories and a final score.
+   - **WRITER Agent**: provides the initial proposal or subsequent contributions that may evolve based on critique.
+   - **CRITIC Agent**: evaluates and provides constructive criticism of the content or arguments presented by the WRITER agent. It offers counterpoints, highlights flaws, or suggests improvements to refine the proposals made by the WRITER.
    - **Chat Termination Strategy** (Red Box):
-     - This component decides when the conversation has reached a satisfactory conclusion. It takes the overall critic score and compares to acceptance treshold. 
+     - This component decides when the debate or conversation has reached a satisfactory conclusion.
+
+   Both agents operate in a conversational loop where the CRITIC responds to the WRITER's output, and the WRITER iteratively refines its answers based on the CRITIC's feedback. 
 
 Semantic Kernel powers the agents with features like prompt engineering, memory recall, and logic orchestration.
 
