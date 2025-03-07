@@ -40,13 +40,17 @@ class DebateOrchestrator:
     quality by allowing specialized agents to focus on different aspects of the task.
     """
     
+    # --------------------------------------------
+    # Constructor
+    # --------------------------------------------
     def __init__(self):
         """
-        Initializes the DebateOrchestrator with necessary services and kernel configurations.
+        Creates the DebateOrchestrator with necessary services and kernel configurations.
         
-        Sets up Azure OpenAI connections for both executor and utility models, configures
-        the Semantic Kernel, and prepares execution settings for the agents.
+        Sets up Azure OpenAI connections for both executor and utility models, 
+        configures Semantic Kernel, and prepares execution settings for the agents.
         """
+        
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         self.logger.info("Semantic Orchestrator Handler init")
@@ -59,6 +63,10 @@ class DebateOrchestrator:
         utility_deployment_name = os.getenv("UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME")
         
         credential = DefaultAzureCredential()
+        
+        # Multi model setup - a service is an LLM in SK terms
+        # Executor - gpt-4o 
+        # Utility  - gpt-4o-mini
         executor_service = AzureAIInferenceChatCompletion(
             ai_model_id="executor",
             service_id="executor",
@@ -89,7 +97,6 @@ class DebateOrchestrator:
         self.settings_utility = AzureChatPromptExecutionSettings(service_id="utility", temperature=0)
         
         self.resourceGroup = os.getenv("AZURE_RESOURCE_GROUP")
-        
 
     # --------------------------------------------
     # Create Agent Group Chat
@@ -102,6 +109,7 @@ class DebateOrchestrator:
             AgentGroupChat: A configured group chat with specialized agents, 
                            selection strategy and termination strategy.
         """
+        
         self.logger.debug("Creating chat")
         
         writer = create_agent_from_yaml(service_id="executor",
@@ -120,7 +128,65 @@ class DebateOrchestrator:
                                          maximum_iterations=6))
 
         return agent_group_chat
+        
+    # --------------------------------------------
+    # Run the agent conversation
+    # --------------------------------------------
+    async def process_conversation(self, user_id, conversation_messages):
+        """
+        Processes a conversation by orchestrating a debate between AI agents.
+        
+        Manages the entire conversation flow, from initializing the agent group chat to
+        collecting and returning responses. Uses OpenTelemetry for tracing.
+        
+        Args:
+            user_id: Unique identifier for the user, used in session tracking.
+            conversation_messages: List of dictionaries with role, name and content
+                                  representing the conversation history.
+                                  
+        Yields:
+            Status updates during processing and the final response in JSON format.
+        """
+        
+        agent_group_chat = self.create_agent_group_chat()
+       
+        # Load chat history
+        chat_history = [
+            ChatMessageContent(
+                role=AuthorRole(d.get('role')),
+                name=d.get('name'),
+                content=d.get('content')
+            ) for d in filter(lambda m: m['role'] in ("assistant", "user"), conversation_messages)
+        ]
 
+        await agent_group_chat.add_chat_messages(chat_history)
+
+        tracer = get_tracer(__name__)
+        
+        # UNIQUE SESSION ID is a must for AI Foundry Tracing
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        session_id = f"{user_id}-{current_time}"
+        
+        messages = []
+        
+        with tracer.start_as_current_span(session_id):
+            yield "WRITER: Prepares the initial draft"
+            async for a in agent_group_chat.invoke():
+                self.logger.info("Agent: %s", a.to_dict())
+                messages.append(a.to_dict())
+                next_action = await describe_next_action(self.kernel, self.settings_utility, messages)
+                self.logger.info("%s", next_action)
+                # Returning plain text to indicate that it is a status update
+                yield f"{next_action}"
+
+        response = list(reversed([item async for item in agent_group_chat.get_chat_messages()]))
+
+        # Last writer response
+        reply = [r for r in response if r.name == "Writer"][-1].to_dict()
+        
+        # Final message is formatted as JSON to indicate the final response
+        yield json.dumps(reply)
+        
     # --------------------------------------------
     # Speaker Selection Strategy
     # --------------------------------------------
@@ -236,57 +302,3 @@ class DebateOrchestrator:
 
         return CompletionTerminationStrategy(agents=agents,
                                              maximum_iterations=maximum_iterations)
-        
-    async def process_conversation(self, user_id, conversation_messages):
-        """
-        Processes a conversation by orchestrating a debate between AI agents.
-        
-        Manages the entire conversation flow, from initializing the agent group chat to
-        collecting and returning responses. Uses OpenTelemetry for tracing.
-        
-        Args:
-            user_id: Unique identifier for the user, used in session tracking.
-            conversation_messages: List of dictionaries with role, name and content
-                                  representing the conversation history.
-                                  
-        Yields:
-            Status updates during processing and the final response in JSON format.
-        """
-        agent_group_chat = self.create_agent_group_chat()
-       
-        # Load chat history
-        chat_history = [
-            ChatMessageContent(
-                role=AuthorRole(d.get('role')),
-                name=d.get('name'),
-                content=d.get('content')
-            ) for d in filter(lambda m: m['role'] in ("assistant", "user"), conversation_messages)
-        ]
-
-        await agent_group_chat.add_chat_messages(chat_history)
-
-        tracer = get_tracer(__name__)
-        
-        # UNIQUE SESSION ID is a must for AI Foundry Tracing
-        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-        session_id = f"{user_id}-{current_time}"
-        
-        messages = []
-        
-        with tracer.start_as_current_span(session_id):
-            yield "WRITER: Prepares the initial draft"
-            async for a in agent_group_chat.invoke():
-                self.logger.info("Agent: %s", a.to_dict())
-                messages.append(a.to_dict())
-                next_action = await describe_next_action(self.kernel, self.settings_utility, messages)
-                self.logger.info("%s", next_action)
-                # Returning plain text to indicate that it is a status update
-                yield f"{next_action}"
-
-        response = list(reversed([item async for item in agent_group_chat.get_chat_messages()]))
-
-        # Last writer response
-        reply = [r for r in response if r.name == "Writer"][-1].to_dict()
-        
-        # Final message is formatted as JSON to indicate the final response
-        yield json.dumps(reply)

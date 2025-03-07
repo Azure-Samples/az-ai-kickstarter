@@ -55,7 +55,7 @@ See below for installation instructions
 
 ### Quick deploy
 
-[Dependency Install Guide](docs/DEPENDENCY_INSTALL.md)
+[Dependency Install Guide](doc/DEPENDENCY_INSTALL.md)
 
 #### Deploy 
 
