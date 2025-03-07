@@ -2,7 +2,7 @@
 
 ToC: [**USER STORY**](#azure-ai-app-kickstarter) \| [**GETTING STARTED**](#getting-started)  \| [**HOW IT WORKS**](#how-it-works)
 
-## Azure AI App Kickstarter 
+## Azure AI App Kickstarter
 
 An opinionated set of best practices and patterns to bootstrap your Multi Agent application in minutes.
 
@@ -33,8 +33,7 @@ Semantic Kernel powers the agents with features like prompt engineering, memory 
 ### Codespaces and DevContainers
 
 This respository has been configured to support GitHub Codespace and DevContainers.
-
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/az-ai-kickstarter) [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/Azure-Samples/az-ai-kickstarter)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/evmin/az-ai-kickstarter) [![Open in Dev Containers](https://img.shields.io/static/v1?style=for-the-badge&label=Dev%20Containers&message=Open&color=blue&logo=visualstudiocode)](https://vscode.dev/redirect?url=vscode://ms-vscode-remote.remote-containers/cloneInVolume?url=https://github.com/evmin/az-ai-kickstarter)
 
 > [!WARNING]
 > Do NOT `git clone` the application under Windows and then open a DevContainer. 
@@ -170,4 +169,3 @@ This project follows the below responsible AI guidelines and best practices, ple
 
   * [Dominique Broeglin](https://github.com/dbroeglin)
   * [Evgeny Minkevich](https://github.com/evmin)
-

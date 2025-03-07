@@ -97,12 +97,13 @@ with st.status("Agents are crafting a response...", expanded=True) as status:
         # Call backend API to generate blog post
         url = f'{os.getenv("BACKEND_ENDPOINT", "http://localhost:8000")}/blog'
         payload = {"topic": "cookies", "user_id": get_principal_id()}
-
+        headers = {}
+        
         # Processing treaming responses
         # Each chunk can be be either a string or contain JSON. 
         # If the chunk is a string it is a status action update - "Critic evaluates the text". 
         # If it is a JSON it will contain the generated blog post content.
-        with requests.post(url, json=payload, stream=True) as response:
+        with requests.post(url, json=payload, headers={}, stream=True) as response:
             for line in response.iter_lines():
                 result = line.decode('utf-8')
                 # For each line as JSON

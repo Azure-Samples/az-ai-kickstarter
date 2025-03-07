@@ -1,7 +1,7 @@
 [project]
 name = "backend"
 version = "0.1.0"
-description = "AI Application chassis - best AI app practices optimized for Azure - Backend"
+description = "AI Applications Chassis - AI Apps Best Practices Tailored for Azure - Backend"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
