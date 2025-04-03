@@ -27,11 +27,12 @@ class ScoreBasedTerminationStrategy(TerminationStrategy):
         arguments = KernelArguments()
         arguments["evaluation"] = history[-1].content
 
-        res_val = await self.kernel.invoke(function=self.termination_function, arguments=arguments)
+        res = await self.kernel.invoke(function=self.termination_function, arguments=arguments)
+        res_val = res.value[0].content if res.value else 0
         logger.info(f"Critic Evaluation: {res_val}")
 
         try:
-            should_terminate = float(str(res_val)) >= self.threshold
+            should_terminate = float(res_val) >= self.threshold
         except ValueError:
             logger.error(f"Should terminate error: ValueError parsing '{res_val}'")
             should_terminate = False

@@ -17,3 +17,17 @@ dependencies = [
     "azure-identity>=1.19.0",
     "azure-ai-inference[opentelemetry]>=1.0.0b9",
 ]
+[project.optional-dependencies]
+test = [
+    "pytest>=7.3.1",
+    "pytest-asyncio>=0.21.0"
+]
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["patterns", "agents", "utils", "tests"]

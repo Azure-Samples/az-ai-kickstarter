@@ -1,250 +1,256 @@
-import os
 import json
-import logging
 import datetime
 import inspect
-from typing import List, Dict, AsyncGenerator
+import json
+import logging
+from typing import List, Dict, AsyncGenerator, Callable, Optional, Any
 
+from opentelemetry.trace import get_tracer
 from patterns.score_based_termination_strategy import ScoreBasedTerminationStrategy
-from semantic_kernel.kernel import Kernel
+from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
 from semantic_kernel.agents import AgentGroupChat
 from semantic_kernel.agents.strategies import KernelFunctionSelectionStrategy
 from semantic_kernel.connectors.ai.open_ai import AzureChatPromptExecutionSettings
-
 from semantic_kernel.contents.chat_message_content import ChatMessageContent
 from semantic_kernel.contents.utils.author_role import AuthorRole
-from semantic_kernel.core_plugins.time_plugin import TimePlugin
-from semantic_kernel.functions import KernelPlugin, KernelFunctionFromPrompt
-
-from semantic_kernel.connectors.ai.azure_ai_inference import AzureAIInferenceChatCompletion
-from azure.ai.inference.aio import ChatCompletionsClient
-from azure.identity.aio import DefaultAzureCredential
-
-from opentelemetry.trace import get_tracer
-
-from utils.util import create_agent_from_yaml, load_dotenv_from_azd
+from semantic_kernel.functions import KernelFunctionFromPrompt, KernelArguments
+from utils.util import load_dotenv_from_azd
 
 load_dotenv_from_azd()
 logger = logging.getLogger(__name__)
 tracer = get_tracer(__name__)
 
-# Module-level configuration constants from environment variables
-ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
 
-# Check for required environment variables
-if not ENDPOINT:
-    logger.error("AZURE_OPENAI_ENDPOINT environment variable is not set")
-if not API_VERSION:
-    logger.error("AZURE_OPENAI_API_VERSION environment variable is not set")
+class DebateSettings(BaseModel):
+    """Configuration settings for a debate pattern."""
+    selection: Optional[AzureChatPromptExecutionSettings] = None
+    next_action: Optional[AzureChatPromptExecutionSettings] = None 
+    termination: Optional[AzureChatPromptExecutionSettings] = None
 
-# Module-level initialization of credential
-credential = DefaultAzureCredential()
 
-# Define service configurations
-SERVICE_CONFIGS = [
-    {
-        "service_id": "executor",
-        "deployment_env_var": "EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME",
-        "deployment_name": os.getenv("EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME")
-    },
-    {
-        "service_id": "utility",
-        "deployment_env_var": "UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME",
-        "deployment_name": os.getenv("UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME")
+class DebatePrompts(BaseModel):
+    """Prompt templates used in the debate pattern."""
+    speaker_selection: str = Field(..., description="Template for selecting the next speaker")
+    next_action: str = Field(..., description="Template for describing the next action")
+    termination_function: Optional[str] = Field(None, description="Optional prompt for termination evaluation")
+
+    @field_validator('speaker_selection', 'next_action')
+    @classmethod
+    def validate_prompts(cls, v: str, info: ValidationInfo) -> str:
+        """Validate that prompts are not empty."""
+        if not v or not v.strip():
+            raise ValueError(f"Prompt template '{info.field_name}' cannot be empty")
+        return v
+
+
+class DebateConfig(BaseModel):
+    """Complete configuration for a debate pattern."""
+    kernel: Any = Field(..., description="The Semantic Kernel instance")
+    agents: List[Any] = Field(..., min_length=1, description="List of agent instances")
+    settings: DebateSettings = Field(..., description="Execution settings for different prompts")
+    prompts: DebatePrompts = Field(..., description="Prompt templates for the debate")
+    result_extractor: Optional[Callable] = Field(None, description="Optional function to extract final result")
+    maximum_iterations: int = Field(6, ge=1, description="Maximum number of debate iterations")
+    termination_agents: Optional[List[Any]] = Field(None, description="Optional list of agents to use for termination")
+    
+    @model_validator(mode='after')
+    def check_termination_agents(self) -> 'DebateConfig':
+        """Validate termination agents are in the agent list."""
+        if self.termination_agents:
+            agent_names = {agent.name for agent in self.agents}
+            for agent in self.termination_agents:
+                if agent.name not in agent_names:
+                    raise ValueError(f"Termination agent {agent.name} not found in main agents list")
+        return self
+    
+    model_config = {
+        'arbitrary_types_allowed': True
     }
-]
 
-# Log warnings for missing deployment names
-for config in SERVICE_CONFIGS:
-    if not config["deployment_name"]:
-        logger.error(f"{config['deployment_env_var']} environment variable is not set")
 
-# Create services using mapping
-services = []
-if ENDPOINT and API_VERSION:
-    services = [
-        AzureAIInferenceChatCompletion(
-            ai_model_id=config["service_id"],
-            service_id=config["service_id"],
-            client=ChatCompletionsClient(
-                endpoint=f"{str(ENDPOINT).strip('/')}/openai/deployments/{config['deployment_name']}",
-                api_version=API_VERSION,
-                credential=credential,
-                credential_scopes=["https://cognitiveservices.azure.com/.default"],
+class DebatePattern:
+    """
+    A configurable pattern for orchestrating debates between AI agents.
+    
+    This class encapsulates the debate pattern, allowing it to be customized
+    with different agents, selection strategies, and termination conditions.
+    """
+    
+    def __init__(
+        self,
+        config: DebateConfig
+    ):
+        """
+        Initialize a new DebatePattern.
+        
+        Args:
+            config: Complete configuration for the debate pattern
+        """
+        self.config = config
+        self.kernel = config.kernel
+        self.agents = config.agents
+        self.settings = config.settings
+        self.maximum_iterations = config.maximum_iterations
+        self.termination_agents = config.termination_agents or []
+        self.result_extractor = config.result_extractor
+        
+        # Initialize the agent group chat
+        self._setup_agent_group_chat()
+        
+    def _setup_agent_group_chat(self):
+        """Configure the agent group chat with selection and termination strategies."""
+
+        # Create selection function
+        selection_function = KernelFunctionFromPrompt(
+            function_name="SpeakerSelector",
+            prompt_execution_settings=self.settings.selection,
+            prompt=inspect.cleandoc(self.config.prompts.speaker_selection)
+        )
+        
+        # Selection strategy with parser
+        def parse_selection_output(output):
+            logger.info("------- Speaker selected: %s", output)
+            if output.value is not None:
+                return output.value[0].content
+            return self.agents[0].name  # Default to first agent
+            
+        selection_strategy = KernelFunctionSelectionStrategy(
+            kernel=self.kernel,
+            function=selection_function,
+            result_parser=parse_selection_output,
+            agent_variable_name="agents",
+            history_variable_name="history"
+        )
+        
+        # Create termination strategy if prompt is provided
+        if self.config.prompts.termination_function:
+            termination_function = KernelFunctionFromPrompt(
+                function_name="TerminationEvaluator",
+                prompt_execution_settings=self.settings.termination,
+                prompt=inspect.cleandoc(self.config.prompts.termination_function)
+            )
+            
+            termination_strategy = ScoreBasedTerminationStrategy(
+                kernel=self.kernel,
+                agents=self.termination_agents or self.agents,
+                maximum_iterations=self.maximum_iterations,
+                termination_function=termination_function
+            )
+        else:
+            # Simple maximum iterations strategy if no termination prompt
+            termination_strategy = ScoreBasedTerminationStrategy(
+                kernel=self.kernel,
+                agents=self.termination_agents or self.agents,
+                maximum_iterations=self.maximum_iterations
+            )
+        
+        # Create agent group chat
+        self.agent_group_chat = AgentGroupChat(
+            agents=self.agents,
+            selection_strategy=selection_strategy,
+            termination_strategy=termination_strategy
+        )
+    
+    async def describe_next_action(self, messages):
+        """
+        Determines the next action in an agent conversation workflow.
+        
+        Args:
+            messages: Conversation history between agents
+            
+        Returns:
+            str: A summary of the next action
+        """
+        next_action = await self.kernel.invoke_prompt(
+            function_name="describe_next_action",
+            prompt=inspect.cleandoc(self.config.prompts.next_action),
+            settings=self.settings.next_action,
+            arguments=KernelArguments(
+                history=messages
             )
         )
-        for config in SERVICE_CONFIGS
-        if config["deployment_name"]  # Only create if deployment name is available
-    ]
-
-settings_executor = AzureChatPromptExecutionSettings(service_id="executor", temperature=0)
-settings_utility = AzureChatPromptExecutionSettings(service_id="utility", temperature=0)
-
-kernel = Kernel(
-    services=services,
-    plugins=[KernelPlugin.from_object(plugin_instance=TimePlugin(), plugin_name="time")]
-)
-
-writer = create_agent_from_yaml(
-    service_id="executor",
-    kernel=kernel,
-    definition_file_path="agents/writer.yaml"
-)
-
-critic = create_agent_from_yaml(
-    service_id="executor",
-    kernel=kernel,
-    definition_file_path="agents/critic.yaml"
-)
-
-agents = [writer, critic]
-
-agents_string = "\n".join([f"{agent.name}: {agent.description}" for agent in agents])
-speaker_selection_prompt = inspect.cleandoc(f"""
-            You are the next speaker selector.
-
-            - You MUST return ONLY agent name from the list of available agents below.
-            - You MUST return the agent name and nothing else.
-            - The agent names are case-sensitive and should not be abbreviated or changed.
-            - Check the history, and decide WHAT agent is the best next speaker
-            - You MUST call CRITIC agent to evaluate WRITER RESPONSE
-            - YOU MUST OBSERVE AGENT USAGE INSTRUCTIONS.
-
-            # AVAILABLE AGENTS
-
-            {agents_string}
-
-            # CHAT HISTORY
-
-            {{$history}}
-        """)
-
-selection_function = KernelFunctionFromPrompt(
-    function_name="SpeakerSelector",
-    prompt_execution_settings=settings_executor,
-    prompt=speaker_selection_prompt
-)
-
-selection_strategy = KernelFunctionSelectionStrategy(
-    kernel=kernel,
-    function=selection_function,
-    result_parser=lambda output: critic.name if output.value is None else output.value[0].content,
-    agent_variable_name="agents",
-    history_variable_name="history"
-)
-
-# Create termination strategy - can be modified during runtime
-termination_strategy = ScoreBasedTerminationStrategy(
-    kernel=kernel,
-    agents=[critic],
-    maximum_iterations=6,
-    termination_function = KernelFunctionFromPrompt(
-        function_name="TerminationEvaluator",
-        prompt_execution_settings=settings_utility,
-        prompt=inspect.cleandoc("""
-                You are a data extraction assistant.
-                Check the provided evaluation and return the evalutation score.
-                It MUST be a single number only, for example - for 6/10 return 6.
-                {{$evaluation}}
-            """)
-    )
-)
-
-# Create agent group chat - can be modified during runtime
-agent_group_chat = AgentGroupChat(
-    agents=agents,
-    selection_strategy=selection_strategy,
-    termination_strategy=termination_strategy
-)
-
-
-async def describe_next_action(kernel, settings, messages):
-    """
-    Determines the next action in an agent conversation workflow.
+        return next_action
     
-    Args:
-        kernel: The Semantic Kernel instance
-        settings: Execution settings for the prompt
-        messages: Conversation history between agents
+    async def process_conversation(
+        self, 
+        user_id: str, 
+        conversation_messages: List[Dict[str, str]],
+        initial_message: str = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Process a conversation by orchestrating a debate between AI agents.
         
-    Returns:
-        str: A three-word summary of the next action, indicating which agent should act
+        Args:
+            user_id: Unique identifier for the user
+            conversation_messages: List of conversation message dictionaries
+            initial_message: Optional message to yield at the start
+            
+        Yields:
+            Status updates and final response
+        """
+        # Convert conversation history to ChatMessageContent objects
+        chat_history = [
+            ChatMessageContent(
+                role=AuthorRole(msg.get('role')),
+                name=msg.get('name'),
+                content=msg.get('content')
+            )
+            for msg in filter(lambda m: m['role'] in ("assistant", "user"), conversation_messages)
+        ]
         
-    This function analyzes the conversation context to determine workflow progression
-    between WRITER and CRITIC agents, with special handling for high-scoring CRITIC responses.
-    """
-    next_action = await kernel.invoke_prompt(
-        function_name="describe_next_action",
-        prompt=inspect.cleandoc(f"""
-        Provided the following chat history, what is next action in the agentic chat? 
+        # Add chat history to the agent group chat
+        await self.agent_group_chat.add_chat_messages(chat_history)
         
-        Provide three word summary.
-        Always indicate WHO takes the action, for example: WRITER: Writes revises draft
-        OBS! CRITIC cannot take action, only to evaluate the text and provide a score.
+        current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+        session_id = f"{user_id}-{current_time}"
+        messages = []
         
-        IF the last entry is from CRITIC and the score is above 8 - you MUST respond with "CRITIC: Approves the text."
+        # Run the conversation with tracing
+        with tracer.start_as_current_span(session_id):
+            # Yield initial message if provided
+            if initial_message:
+                yield initial_message
+                
+            async for a in self.agent_group_chat.invoke():
+                logger.info(f"Agent: {a.to_dict()}")
+                messages.append(a.to_dict())
+                next_action = await self.describe_next_action(messages)
+                logger.info(f"{next_action}")
+                yield f"{next_action}"
         
-        AGENTS:
-        - WRITER: Writes and revises the text
-        - CRITIC: Evaluates the text and provides scroring from 1 to 10
+        # Get final response using extractor if provided
+        all_messages = list(reversed([item async for item in self.agent_group_chat.get_chat_messages()]))
         
-        AGENT_CHAT: {messages}
-        
-        """),
-        settings=settings
-    )
-    return next_action
-
-
-async def process_conversation(user_id: str, conversation_messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
-    """
-    Process a conversation by orchestrating a debate between AI agents.
+        if self.result_extractor:
+            result = self.result_extractor(all_messages)
+            yield json.dumps(result)
+        else:
+            # Default behavior: return last message from first agent
+            try:
+                result = [r.to_dict() for r in all_messages if r.name == self.agents[0].name][-1]
+                yield json.dumps(result)
+            except (IndexError, KeyError):
+                # Fallback if no messages from first agent
+                yield json.dumps(all_messages[0].to_dict() if all_messages else {"content": "No results available"})
     
-    Args:
-        user_id: Unique identifier for the user
-        conversation_messages: List of conversation message dictionaries
+    async def run_debate(
+        self, 
+        user_id: str, 
+        conversation_history: List[Dict[str, str]],
+        initial_message: str = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Public API: Run a debate for the given conversation history.
         
-    Yields:
-        Status updates and final response
-    """
-    # Convert conversation history to ChatMessageContent objects
-    chat_history = [
-        ChatMessageContent(
-            role=AuthorRole(msg.get('role')),
-            name=msg.get('name'),
-            content=msg.get('content')
-        )
-        for msg in filter(lambda m: m['role'] in ("assistant", "user"), conversation_messages)
-    ]
+        Args:
+            user_id: Unique identifier for the user
+            conversation_history: List of conversation messages
+            initial_message: Optional message to yield at debate start
+        """
+        async for message in self.process_conversation(
+            user_id, 
+            conversation_history,
+            initial_message
+        ):
+            yield message
 
-    # Add chat history to the agent group chat
-    await agent_group_chat.add_chat_messages(chat_history)
-
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
-    session_id = f"{user_id}-{current_time}"
-    messages = []
-
-    # Run the conversation with tracing
-    with tracer.start_as_current_span(session_id):
-        yield "WRITER: Prepares the initial draft"
-        async for a in agent_group_chat.invoke():
-            logger.info(f"Agent: {a.to_dict()}")
-            messages.append(a.to_dict())
-            next_action = await describe_next_action(kernel, settings_utility, messages)
-            logger.info(f"{next_action}")
-            yield f"{next_action}"
-
-    # Get final response
-    response = list(reversed([item async for item in agent_group_chat.get_chat_messages()]))
-    reply = [r for r in response if r.name == "Writer"][-1].to_dict()
-
-    # Return final response as JSON
-    yield json.dumps(reply)
-
-
-# This is the main entry point - more functional API design
-async def run_debate(user_id: str, conversation_history: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
-    """Public API: Run a debate for the given conversation history."""
-    async for message in process_conversation(user_id, conversation_history):
-        yield message

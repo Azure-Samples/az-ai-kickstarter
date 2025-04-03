@@ -75,39 +75,72 @@ telemetry_resource = Resource.create({ResourceAttributes.SERVICE_NAME: os.getenv
 local_endpoint = None
 # local_endpoint = "http://localhost:4317"
 
+# Track telemetry setup state to prevent duplicate registrations
+_telemetry_initialized = {
+    'tracing': False,
+    'metrics': False,
+    'logging': False
+}
 
 def set_up_tracing():
     """
     Sets up exporters for Azure Monitor and optional local telemetry.
+    Will configure local exporters even if Application Insights is not configured.
     """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info("APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup.")
+    # Skip if already initialized
+    if _telemetry_initialized['tracing']:
+        logging.info("Tracing already initialized, skipping setup.")
         return
-
+        
     exporters = []
-    exporters.append(AzureMonitorTraceExporter.from_connection_string(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
-    if (local_endpoint):
+    
+    # Add Azure Monitor exporter if connection string is available
+    if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+        exporters.append(AzureMonitorTraceExporter.from_connection_string(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
+    
+    # Add local exporter if local_endpoint is configured
+    if local_endpoint:
         exporters.append(OTLPSpanExporter(endpoint=local_endpoint))
-
+    
+    # Skip setup completely if no exporters are configured
+    if not exporters:
+        logging.info("No telemetry exporters configured. Skipping tracing setup.")
+        return
+        
     tracer_provider = TracerProvider(resource=telemetry_resource)
     for trace_exporter in exporters:
         tracer_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
     set_tracer_provider(tracer_provider)
+    
+    _telemetry_initialized['tracing'] = True
+    logging.info("Tracing initialized successfully.")
 
 
 def set_up_metrics():
     """
     Configures metrics collection with OpenTelemetry.
     Configures views to filter metrics to only those starting with "semantic_kernel".
+    Will configure local exporters even if Application Insights is not configured.
     """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info("APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup.")
+    # Skip if already initialized
+    if _telemetry_initialized['metrics']:
+        logging.info("Metrics already initialized, skipping setup.")
         return
-
+        
     exporters = []
-    if (local_endpoint):
+    
+    # Add local exporter if local_endpoint is configured
+    if local_endpoint:
         exporters.append(OTLPMetricExporter(endpoint=local_endpoint))
-    exporters.append(AzureMonitorMetricExporter.from_connection_string(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
+    
+    # Add Azure Monitor exporter if connection string is available
+    if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+        exporters.append(AzureMonitorMetricExporter.from_connection_string(os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
+    
+    # Skip setup completely if no exporters are configured
+    if not exporters:
+        logging.info("No telemetry exporters configured. Skipping metrics setup.")
+        return
 
     metric_readers = [PeriodicExportingMetricReader(exporter, export_interval_millis=5000) for exporter in exporters]
 
@@ -121,24 +154,37 @@ def set_up_metrics():
         ],
     )
     set_meter_provider(meter_provider)
+    
+    _telemetry_initialized['metrics'] = True
+    logging.info("Metrics initialized successfully.")
 
 
 def set_up_logging():
     """
     Configures logging with OpenTelemetry.
     Adds filters to exclude specific namespace logs for cleaner output.
+    Will configure local exporters even if Application Insights is not configured.
     """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info("APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup.")
+    # Skip if already initialized
+    if _telemetry_initialized['logging']:
+        logging.info("Logging already initialized, skipping setup.")
         return
-
+        
     exporters = []
-    exporters.append(AzureMonitorLogExporter(connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
-
-    if (local_endpoint):
+    
+    # Add Azure Monitor exporter if connection string is available
+    if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+        exporters.append(AzureMonitorLogExporter(connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")))
+    
+    # Add local exporter if local_endpoint is configured
+    if local_endpoint:
         exporters.append(OTLPLogExporter(endpoint=local_endpoint))
-    # exporters.append(ConsoleLogExporter())
-
+    
+    # Skip setup completely if no exporters are configured
+    if not exporters:
+        logging.info("No telemetry exporters configured. Skipping logging setup.")
+        return
+    
     logger_provider = LoggerProvider(resource=telemetry_resource)
     set_logger_provider(logger_provider)
 
@@ -164,7 +210,8 @@ def set_up_logging():
             "semantic_kernel.prompt_template.kernel_prompt_template",
             # "semantic_kernel.functions.kernel_function",
             "azure.monitor.opentelemetry.exporter.export._base",
-            "azure.core.pipeline.policies.http_logging_policy"
+            "azure.core.pipeline.policies.http_logging_policy",
+            "opentelemetry.sdk.metrics._internal" # Filter out duplicated instrument warnings
         ]
 
         def filter(self, record):
@@ -173,7 +220,10 @@ def set_up_logging():
     # FILTER - WHAT TO LOG - EXPLICITLY
     # handler.addFilter(logging.Filter("semantic_kernel"))
     handler.addFilter(KernelFilter())
-
+    
+    _telemetry_initialized['logging'] = True
+    logging.info("Logging initialized successfully.")
+    
 # --------------------------------------------
 # UTILITY - CREATES an agent based on YAML definition
 # --------------------------------------------
@@ -219,40 +269,3 @@ def create_agent_from_yaml(kernel, service_id, definition_file_path, reasoning_e
     )
     
     return agent
-    
-async def describe_next_action(kernel, settings, messages):
-    """
-    Determines the next action in an agent conversation workflow.
-    
-    Args:
-        kernel: The Semantic Kernel instance
-        settings: Execution settings for the prompt
-        messages: Conversation history between agents
-        
-    Returns:
-        str: A three-word summary of the next action, indicating which agent should act
-        
-    This function analyzes the conversation context to determine workflow progression
-    between WRITER and CRITIC agents, with special handling for high-scoring CRITIC responses.
-    """
-    next_action = await kernel.invoke_prompt(
-        function_name="describe_next_action",
-        prompt=f"""
-        Provided the following chat history, what is next action in the agentic chat? 
-        
-        Provide three word summary.
-        Always indicate WHO takes the action, for example: WRITER: Writes revises draft
-        OBS! CRITIC cannot take action, only to evaluate the text and provide a score.
-        
-        IF the last entry is from CRITIC and the score is above 8 - you MUST respond with "CRITIC: Approves the text."
-        
-        AGENTS:
-        - WRITER: Writes and revises the text
-        - CRITIC: Evaluates the text and provides scroring from 1 to 10
-        
-        AGENT_CHAT: {messages}
-        
-        """,
-        settings=settings
-    )
-    return next_action
