@@ -16,3 +16,12 @@ uvicorn app:app
 > [INFO!] Environment variables will be read from the AZD env file: `$project/.azure/<selected_azd_environment>/.env` automatically
 
 > [WARNING!] Planner environment variables are incompaible with o1-prevew or o1-mini models
+
+
+## Testing
+
+Run pytests integration tests using the following command:
+
+```shell
+python -m pytest tests/
+```

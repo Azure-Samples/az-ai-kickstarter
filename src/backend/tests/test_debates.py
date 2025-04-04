@@ -5,7 +5,8 @@ import asyncio
 import os
 
 from patterns.debate_examples import run_brainstorming_example, run_problem_solving_example
-from utils.util import load_dotenv_from_azd,set_up_tracing, set_up_metrics, set_up_logging
+from utils.util import load_dotenv_from_azd
+from utils.otel import  set_up_tracing, set_up_metrics, set_up_logging
 
 
 load_dotenv_from_azd()
@@ -18,8 +19,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
 logging.getLogger('azure.monitor.opentelemetry.exporter.export').setLevel(logging.WARNING)
 
-# Load environment and setup telemetry after basic logging is configured
-load_dotenv_from_azd()
 set_up_tracing()
 set_up_metrics()
 set_up_logging()

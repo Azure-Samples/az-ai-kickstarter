@@ -19,7 +19,8 @@ from semantic_kernel.functions import KernelPlugin
 from azure.ai.inference.aio import ChatCompletionsClient
 from azure.identity.aio import DefaultAzureCredential
 from patterns.debate import DebatePattern, DebateSettings, DebatePrompts, DebateConfig
-from utils.util import load_dotenv_from_azd, set_up_tracing, set_up_metrics, set_up_logging, create_agent_from_yaml
+from utils.util import load_dotenv_from_azd, create_agent_from_yaml, create_chat_model
+from utils.otel import set_up_tracing, set_up_metrics, set_up_logging
 
 # Set up basic logging configuration first
 logging.basicConfig(
@@ -69,18 +70,14 @@ app = FastAPI()
 services = []
 if ENDPOINT and API_VERSION:
     services = [
-        AzureAIInferenceChatCompletion(
-            ai_model_id=config["service_id"],
+        create_chat_model(
             service_id=config["service_id"],
-            client=ChatCompletionsClient(
-                endpoint=f"{str(ENDPOINT).strip('/')}/openai/deployments/{config['deployment_name']}",
-                api_version=API_VERSION,
-                credential=credential,
-                credential_scopes=["https://cognitiveservices.azure.com/.default"],
-            )
+            deployment_name=config["deployment_name"],
+            endpoint=ENDPOINT,
+            api_version=API_VERSION
         )
         for config in SERVICE_CONFIGS
-        if config["deployment_name"]  # Only create if deployment name is available
+        if config["deployment_name"]
     ]
 
 settings_executor = AzureChatPromptExecutionSettings(service_id="executor", temperature=0)

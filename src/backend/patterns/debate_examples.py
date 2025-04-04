@@ -15,6 +15,8 @@ from azure.identity.aio import DefaultAzureCredential
 from patterns.debate import DebatePattern, DebateConfig, DebateSettings, DebatePrompts
 from utils.util import create_agent_from_yaml, load_dotenv_from_azd
 
+from src.backend.utils.util import create_chat_model
+
 load_dotenv_from_azd()
 
 ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -34,23 +36,19 @@ SERVICE_CONFIGS = [
         "deployment_name": os.getenv("UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME")
     }
 ]
-    
-    # Create the AI services
+
+
 services = []
 if ENDPOINT and API_VERSION:
     services = [
-        AzureAIInferenceChatCompletion(
-            ai_model_id=config["service_id"],
+        create_chat_model(
             service_id=config["service_id"],
-            client=ChatCompletionsClient(
-                endpoint=f"{str(ENDPOINT).strip('/')}/openai/deployments/{config['deployment_name']}",
-                api_version=API_VERSION,
-                credential=credential,
-                credential_scopes=["https://cognitiveservices.azure.com/.default"],
-            )
+            deployment_name=config["deployment_name"],
+            endpoint=ENDPOINT,
+            api_version=API_VERSION
         )
         for config in SERVICE_CONFIGS
-        if config["deployment_name"]  # Only create if deployment name is available
+        if config["deployment_name"]
     ]
 
 # Set up the kernel with services and plugins
