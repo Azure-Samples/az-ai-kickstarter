@@ -347,7 +347,7 @@ module azureOpenAi 'modules/ai/cognitiveservices.bicep' = {
   }
 }
 
-module searchService 'br/public:avm/res/search/search-service:0.8.2' = {
+module searchService 'br/public:avm/res/search/search-service:0.9.2' = {
   name: _aiSearchServiceName
   scope: resourceGroup()
   params: {
@@ -355,6 +355,8 @@ module searchService 'br/public:avm/res/search/search-service:0.8.2' = {
     tags: tags
     name: _aiSearchServiceName
     sku: aiSearchSkuName
+    replicaCount: 1
+    partitionCount: 1
   }
 }
 
