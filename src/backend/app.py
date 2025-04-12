@@ -11,6 +11,7 @@ import os
 from fastapi import FastAPI, Body
 from fastapi.responses import StreamingResponse
 from patterns.debate import DebateOrchestrator
+from patterns.debate_ai_foundry import DebateOrchestrator as DebateOrchestratorAiFoundry
 from utils.util import load_dotenv_from_azd, set_up_tracing, set_up_metrics, set_up_logging
 
 load_dotenv_from_azd()
@@ -26,9 +27,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
 logging.getLogger('azure.monitor.opentelemetry.exporter.export').setLevel(logging.WARNING)
 
-# Choose pattern to use
-orchestrator = DebateOrchestrator()
-
+# Initialize FastAPI app
 app = FastAPI()
 
 logger.info("Diagnostics: %s", os.getenv('SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS'))
@@ -39,9 +38,11 @@ async def http_blog(request_body: dict = Body(...)):
     Generate a blog post about a specified topic using the debate orchestrator.
     
     Args:
-        request_body (dict): JSON body containing 'topic' and 'user_id' fields.
+        request_body (dict): JSON body containing 'topic', 'user_id', and 'orchestrator_type' fields.
             - topic (str): The subject for the blog post. Defaults to 'Starwars'.
             - user_id (str): Identifier for the user making the request. Defaults to 'default_user'.
+            - orchestrator_type (str): Type of orchestrator to use. 'sk' for pure Semantic Kernel agents, 
+              'ai_foundry_sk_mix' for 1 Azure AI agent and 1 SK agent. Defaults to 'sk'.
     
     Returns:
         StreamingResponse: A streaming response.
@@ -53,7 +54,16 @@ async def http_blog(request_body: dict = Body(...)):
 
     topic = request_body.get('topic', 'Starwars')
     user_id = request_body.get('user_id', 'default_user')
+    orchestrator_type = request_body.get('orchestrator_type', 'sk')
     content = f"Write a blog post about {topic}."
+
+    # Select orchestrator based on request parameter
+    if orchestrator_type == 'sk':
+        orchestrator = DebateOrchestrator()
+        logger.info('Using DebateOrchestrator (Two Semantic Kernel agents)')
+    else:
+        orchestrator = DebateOrchestratorAiFoundry()
+        logger.info('Using DebateOrchestratorAiFoundry (One Semantic Kernel agent and one Azure AI Agent)')
 
     conversation_messages = []
     conversation_messages.append({'role': 'user', 'name': 'user', 'content': content})

@@ -47,12 +47,12 @@ from azure.monitor.opentelemetry.exporter import (
     AzureMonitorMetricExporter,
     AzureMonitorTraceExporter,
 )
-
+from azure.identity.aio import DefaultAzureCredential
 from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
 from semantic_kernel.connectors.ai.open_ai import AzureChatPromptExecutionSettings
 
 from semantic_kernel.functions import KernelArguments
-from semantic_kernel.agents import ChatCompletionAgent
+from semantic_kernel.agents import ChatCompletionAgent, AzureAIAgent, AzureAIAgentSettings
 
 def load_dotenv_from_azd():
     """
@@ -69,6 +69,7 @@ def load_dotenv_from_azd():
         logging.info(f"AZD environment not found. Trying to load from .env file...")
         load_dotenv()
 
+load_dotenv_from_azd()
 telemetry_resource = Resource.create({ResourceAttributes.SERVICE_NAME: os.getenv("AZURE_RESOURCE_GROUP","ai-accelerator")})
 
 # Set endpoint to the local Aspire Dashboard endpoint to enable local telemetry - DISABLED by default
@@ -216,6 +217,56 @@ def create_agent_from_yaml(kernel, service_id, definition_file_path, reasoning_e
         name=definition['name'],
         description=definition['description'],
         instructions=definition['instructions']
+    )
+    
+    return agent
+
+async def create_ai_foundry_agent_from_yaml(kernel, definition_file_path, reasoning_effort=None):
+    """
+    Creates a Azure AI Agent from a YAML definition file.
+
+    Args:
+        kernel: The Semantic Kernel instance
+        definition_file_path: Path to the YAML file containing agent definition
+        reasoning_effort: Optional reasoning effort parameter for OpenAI models. Currently not yet supported by Azure AI Agent.
+        
+    Returns:
+        AzureAIAgent: Configured agent instance
+        
+    The YAML definition should include name, description, instructions, 
+    temperature, and included_plugins.
+    """
+    with open(definition_file_path, 'r', encoding='utf-8') as file:
+        definition = yaml.safe_load(file)
+    
+    # Get environment variables
+    project_connection_string = os.getenv("AI_PROJECT_CONNECTION_STRING")
+    model_deployment_name = os.getenv("EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME")
+    
+    # Create credential
+    creds = DefaultAzureCredential()
+    # Create client
+    client = AzureAIAgent.create_client(credential=creds, conn_str=project_connection_string) 
+    
+    # Create the agent definition
+    agent_definition = await client.agents.create_agent(
+        model=model_deployment_name,
+        name=definition['name'],
+        description=definition['description'],
+        instructions=definition['instructions'],
+    )
+    
+    # Create settings
+    settings = AzureAIAgentSettings(
+        model_deployment_name=model_deployment_name
+    )
+    
+    # Create agent
+    agent = AzureAIAgent(
+        client=client,
+        definition=agent_definition,
+        settings=settings,
+        kernel=kernel
     )
     
     return agent
