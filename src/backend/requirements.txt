@@ -9,5 +9,6 @@ opentelemetry-exporter-otlp-proto-grpc==1.31.1
 opentelemetry-instrumentation==0.52b1
 python-dotenv==1.0.1
 pyyaml==6.0.2
-semantic-kernel==1.25.0
+semantic-kernel==1.27.0
 uvicorn==0.32.1
+azure.ai.projects
