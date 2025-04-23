@@ -18,7 +18,9 @@ param azurePrincipalId string
 param extraTags object = {}
 
 @description('Location for all resources')
-param location string = resourceGroup().location
+// temporarily commenting out due to: https://github.com/Azure/azure-dev/issues/5059
+//param location string = resourceGroup().location
+param location string
 
 /* ------------ Optional externally provided model configuration ------------ */
 
