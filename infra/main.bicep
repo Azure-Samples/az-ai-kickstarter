@@ -619,3 +619,13 @@ output SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS bool = true
 
 @description('Semantic Kernel Diagnostics: if set, content of the messages is traced. Set to false in production')
 output SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS_SENSITIVE bool = true
+
+/* --------------------------- AI Foundry ------------------------------ */
+@description('Azure AI Foundry Hub name')
+output AI_HUB_NAME string = hub.outputs.name
+
+@description('Azure AI Foundry Project name')
+output AI_PROJECT_NAME string = project.outputs.name
+
+@description('Azure AI Foundry Project Connection string')
+output AI_PROJECT_CONNECTION_STRING string = '${location}.api.azureml.ms;${last(split(subscription().id, '/'))};${resourceGroup().name};${project.outputs.name}'

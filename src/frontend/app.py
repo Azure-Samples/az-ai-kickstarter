@@ -89,6 +89,19 @@ st.sidebar.markdown(
     '<a href="/.auth/logout" target = "_self">Sign Out</a>', unsafe_allow_html=True
 )
 
+# Add orchestrator selection dropdown
+orchestrator_type = st.sidebar.selectbox(
+    "Select Orchestrator Type",
+    ["Two Semantic Kernel agents", "One Semantic Kernel agent and one Azure AI Agent"],
+    index=0
+)
+
+# Display hint message based on orchestrator type
+if orchestrator_type == "Two Semantic Kernel agents":
+    st.info("ℹ️ **Currently using:** Two Semantic Kernel agents - both Writer and Critic are powered by Azure OpenAI via Semantic Kernel")
+else:
+    st.info("ℹ️ **Currently using:** Hybrid setup - Writer is powered by Semantic Kernel, Critic is powered by Azure AI Foundry Agent")
+
 # Main content area - blog post generation
 st.write("Requesting a blog post about cookies:")
 result = None
@@ -96,7 +109,11 @@ with st.status("Agents are crafting a response...", expanded=True) as status:
     try:
         # Call backend API to generate blog post
         url = f'{os.getenv("BACKEND_ENDPOINT", "http://localhost:8000")}/blog'
-        payload = {"topic": "cookies", "user_id": get_principal_id()}
+        payload = {
+            "topic": "cookies", 
+            "user_id": get_principal_id(),
+            "orchestrator_type": "sk" if orchestrator_type == "Two Semantic Kernel agents" else "ai_foundry_sk_mix"
+        }
         headers = {}
         
         # Processing treaming responses
