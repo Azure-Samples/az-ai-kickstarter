@@ -58,15 +58,15 @@
 #     version: "2"
 #   versionUpgradeOption: NoAutoUpgrade
 
-# - name: text-embedding-3-small
-#   sku:
-#     name: GlobalStandard
-#     capacity: 150
-#   model:
-#     format: OpenAI
-#     name: text-embedding-3-small
-#     version: "1"
-#   versionUpgradeOption: NoAutoUpgrade
+- name: text-embedding-3-small
+  sku:
+    name: GlobalStandard
+    capacity: 150
+  model:
+    format: OpenAI
+    name: text-embedding-3-small
+    version: "1"
+  versionUpgradeOption: NoAutoUpgrade
 
 # - name: text-embedding-3-large
 #   sku:

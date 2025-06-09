@@ -179,7 +179,7 @@ var _storageAccountName = take(
   '${abbreviations.storageStorageAccounts}${alphaNumericEnvironmentName}${resourceToken}',
   24
 )
-var _azureOpenAiName = useExistingAzureOpenAi
+var _azureAiServicesName = useExistingAzureOpenAi
   ? azureOpenAiName // if reusing existing service, use the provided name
   : (empty(azureOpenAiName) // else use only if not empty to override the default name
       ? take('${abbreviations.cognitiveServicesOpenAI}${alphaNumericEnvironmentName}${resourceToken}', 63)
@@ -220,10 +220,10 @@ var _backendContainerAppName = empty(backendContainerAppName)
 @description('Model deployment configurations')
 var deployments = loadYamlContent('./deployments.yaml')
 
-var _azureOpenAiEndpoint = useExistingAzureOpenAi ? azureOpenAiEndpoint : aiServices.outputs.endpoint
+var _azureAiServicesEndpoint = useExistingAzureOpenAi ? azureOpenAiEndpoint : aiServices.outputs.endpoint
 
 @description('Azure OpenAI API Version')
-var _azureOpenAiApiVersion = empty(azureOpenAiApiVersion) ? '2024-12-01-preview' : azureOpenAiApiVersion
+var _azureAiServicesApiVersion = empty(azureOpenAiApiVersion) ? '2024-12-01-preview' : azureOpenAiApiVersion
 
 @description('Azure OpenAI Model Deployment Name - Executor Service')
 var _executorAzureOpenAiDeploymentName = !empty(executorAzureOpenAiDeploymentName)
@@ -255,7 +255,7 @@ module aiHub 'modules/ai/hub.bicep' = {
     storageAccountId: storageAccount.outputs.resourceId
     containerRegistryId: app.outputs.containerRegistryResourceId
     applicationInsightsId: appInsightsComponent.outputs.resourceId
-    openAiName: useExistingAzureOpenAi ? azureOpenAiName : _azureOpenAiName
+    openAiName: useExistingAzureOpenAi ? azureOpenAiName : _azureAiServicesName
     azureOpenAiResourceGroupName: useExistingAzureOpenAi ? azureOpenAiResourceGroupName : ''
     openAiConnectionName: 'aoai-connection'
 
@@ -347,11 +347,11 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
 module aiServices 'br/public:avm/res/cognitive-services/account:0.10.2' = if (!useExistingAzureOpenAi) {
   name: '${deployment().name}-aiServices'
   params: {
-    name: _azureOpenAiName
+    name: _azureAiServicesName
     location: empty(azureOpenAiLocation) ? location : azureOpenAiLocation
     tags: tags
     kind: 'AIServices'
-    customSubDomainName: _azureOpenAiName
+    customSubDomainName: _azureAiServicesName
     publicNetworkAccess: 'Enabled'
     networkAcls: {
       defaultAction: 'Allow'
@@ -410,7 +410,7 @@ module aiServices 'br/public:avm/res/cognitive-services/account:0.10.2' = if (!u
   }
 }
 
-module aiSearchService 'br/public:avm/res/search/search-service:0.9.2' = if (useAiSearch && !useExistingAiSearch) {
+module aiSearchService 'br/public:avm/res/search/search-service:0.10.0' = if (useAiSearch && !useExistingAiSearch) {
   name: '${deployment().name}-aiSearchService'
   scope: resourceGroup()
   params: {
@@ -463,8 +463,8 @@ module app 'modules/app.bicep' = {
     authClientSecret: authClientSecret
     authClientSecretName: authClientSecretName
     authTenantId: authTenantId
-    azureOpenAiApiVersion: _azureOpenAiApiVersion
-    azureOpenAiEndpoint: _azureOpenAiEndpoint
+    azureOpenAiApiVersion: _azureAiServicesApiVersion
+    azureOpenAiEndpoint: _azureAiServicesEndpoint
     azurePrincipalId: azurePrincipalId
     backendContainerAppName: _backendContainerAppName
     backendExists: backendExists
@@ -565,16 +565,16 @@ output AZURE_CLIENT_APP_ID string = authClientAppId
 @description('Azure AI Project connection string')
 output AZURE_AI_PROJECT_CONNECTION_STRING string = aiProject.outputs.connectionString
 
-/* ---------------------------- Azure OpenAI ------------------------------- */
+/* ------------------------- Azure AI Services ----------------------------- */
 
 @description('Azure OpenAI service name')
-output AZURE_OPENAI_NAME string = _azureOpenAiName
+output AZURE_AI_SERVICES_NAME string = _azureAiServicesName
 
 @description('Azure OpenAI endpoint - Base URL for API calls to Azure OpenAI')
-output AZURE_OPENAI_ENDPOINT string = _azureOpenAiEndpoint
+output AZURE_OPENAI_ENDPOINT string = _azureAiServicesEndpoint
 
 @description('Azure OpenAI API Version - API version to use when calling Azure OpenAI')
-output AZURE_OPENAI_API_VERSION string = _azureOpenAiApiVersion
+output AZURE_OPENAI_API_VERSION string = _azureAiServicesApiVersion
 
 @description('Azure OpenAI Model Deployment Name - Executor Service')
 output EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME string = _executorAzureOpenAiDeploymentName
@@ -584,6 +584,12 @@ output UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME string = _utilityAzureOpenAiDeployme
 
 @description('JSON deployment configuration for the models')
 output AZURE_OPENAI_DEPLOYMENTS object[] = deployments
+
+@description('Azure AI Services endpoint')
+output AZURE_AI_SERVICES_ENDPOINT string = _azureAiServicesEndpoint
+
+@description('Azure AI Content Understanding endpoint')
+output AZURE_CONTENT_UNDERSTANDING_ENDPOINT string = 'https://${_azureAiServicesName}.services.ai.azure.com/'
 
 /* ------------------------------ AI Search --------------------------------- */
 
