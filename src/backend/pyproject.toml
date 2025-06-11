@@ -17,3 +17,15 @@ dependencies = [
     "azure-identity>=1.19.0",
     "azure-ai-inference[opentelemetry]>=1.0.0b9",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.0",
+    "rich>=14.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+pythonpath = [
+    "./",
+]
