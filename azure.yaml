@@ -3,13 +3,6 @@ name: az-ai-kickstarter
 metadata:
   template: dbroeglin/generator-az-ai@0.0.11
 services:
-  backend:
-    language: python
-    project: src/backend
-    host: containerapp
-    docker:
-      path: ./Dockerfile
-      remoteBuild: true
   frontend:
     language: python
     project: src/frontend
