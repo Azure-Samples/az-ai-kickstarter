@@ -22,7 +22,7 @@ azd provision
 
 ```bash
 azd env new _new_environment_name_
-azd env set USE_EXISTING_AZURE_OPENAI True # Set to true to re-use existing Azure OpenAI
+azd env set USE_EXISTING_AI_FOUNDRY True # Set to true to re-use existing Azure OpenAI
 azd env set AZURE_OPENAI_NAME _existing_azure_openai_name_
 azd env set AZURE_OPENAI_ENDPOINT _existing_azure_openai_endpoint_
 azd env set AZURE_OPENAI_API_VERSION _existing_azure_openai_api_version_

@@ -26,8 +26,8 @@ param useAiSearch bool = false
 @description('If true, use and setup authentication with Azure Entra ID')
 param useAuthentication bool = false
 
-@description('Set to true to use an existing Azure OpenAI service.In that case you will need to provide azureOpenAiEndpoint, azureOpenAiApiVersion, executorAzureOpenAiDeploymentName and utilityAzureOpenAiDeploymentName. Defaults to false.')
-param useExistingAzureOpenAi bool = false
+@description('Set to true to use an existing AI Foundry service.In that case you will need to provide aiFoundryEndpoint, aiFoundryApiVersion, executorAiFoundryDeploymentName and utilityAiFoundryDeploymentName. Defaults to false.')
+param useExistingAiFoundry bool = false
 
 @description('Set to true to use an existing Azure AI Search service.In that case you will need to provide TODO. Defaults to false.')
 param useExistingAiSearch bool = false
@@ -35,33 +35,33 @@ param useExistingAiSearch bool = false
 /* -----------------------  Azure Open AI  service ------------------------- */
 
 // See also https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models?tabs=global-standard%2Cstandard-chat-completions#availability-1
-@description('Location for the OpenAI resource group')
+@description('Location for the AI Foundry resource')
 @metadata({
   azd: {
     type: 'location'
   }
 })
-param azureOpenAiLocation string = ''
+param aiFoundryLocation string = ''
 
-/* -------- Optional externally provided Azure OpenAI configuration -------- */
+/* -------- Optional externally provided AI Foundry configuration -------- */
 
-@description('Optional. The name of the Azure OpenAI resource to reuse. Used only if useExistingAzureOpenAi is true.')
-param azureOpenAiName string = ''
+@description('Optional. The name of the AI Foundry resource to reuse. Used only if useExistingAiFoundry is true.')
+param aiFoundryName string = ''
 
-@description('Optional. The endpoint of the Azure OpenAI resource to reuse. Used only if useExistingAzureOpenAi is true.')
-param azureOpenAiEndpoint string = ''
+@description('Optional. The endpoint of the AI Foundry resource to reuse. Used only if useExistingAiFoundry is true.')
+param aiFoundryEndpoint string = ''
 
-@description('Optional. The API version of the Azure OpenAI resource to reuse. Used only if useExistingAzureOpenAi is true.')
-param azureOpenAiApiVersion string = ''
+@description('Optional. The API version of the AI Foundry resource to reuse. Used only if useExistingAiFoundry is true.')
+param aiFoundryApiVersion string = ''
 
-@description('Optional. The name of the Azure OpenAI deployment for the executor to reuse. Used only if useExistingAzureOpenAi is true.')
-param executorAzureOpenAiDeploymentName string = ''
+@description('Optional. The name of the AI Foundry deployment for the executor to reuse. Used only if useExistingAiFoundry is true.')
+param executorAiFoundryDeploymentName string = ''
 
-@description('Optional. The name of the Azure OpenAI deployment for the utility to reuse. Used only if useExistingAzureOpenAi is true.')
-param utilityAzureOpenAiDeploymentName string = ''
+@description('Optional. The name of the AI Foundry deployment for the utility to reuse. Used only if useExistingAiFoundry is true.')
+param utilityAiFoundryDeploymentName string = ''
 
-@description('The Azure OpenAI service resource group name to reuse. Optional: Needed only if resource group is different from current resource group.')
-param azureOpenAiResourceGroupName string = ''
+@description('The AI Foundry service resource group name to reuse. Optional: Needed only if resource group is different from current resource group.')
+param aiFoundryResourceGroupName string = ''
 
 /* -----------------------  Azure AI search service ------------------------ */
 
@@ -179,13 +179,12 @@ var _storageAccountName = take(
   '${abbreviations.storageStorageAccounts}${alphaNumericEnvironmentName}${resourceToken}',
   24
 )
-var _azureOpenAiName = useExistingAzureOpenAi
-  ? azureOpenAiName // if reusing existing service, use the provided name
-  : (empty(azureOpenAiName) // else use only if not empty to override the default name
+var _aiFoundryName = useExistingAiFoundry
+  ? aiFoundryName // if reusing existing service, use the provided name
+  : (empty(aiFoundryName) // else use only if not empty to override the default name
       ? take('${abbreviations.cognitiveServicesOpenAI}${alphaNumericEnvironmentName}${resourceToken}', 63)
-      : azureOpenAiName)
+      : aiFoundryName)
 
-var _aiHubName = take('${abbreviations.aiPortalHub}${environmentName}', 260)
 var _aiProjectName = take('${abbreviations.aiPortalProject}${environmentName}', 260)
 
 var _azureAiSearchName = useExistingAiSearch
@@ -209,31 +208,17 @@ var _appIdentityName = take('${abbreviations.managedIdentityUserAssignedIdentiti
 var _frontendContainerAppName = empty(frontendContainerAppName)
   ? take('${abbreviations.appContainerApps}frontend-${environmentName}', 32)
   : frontendContainerAppName
-var _backendContainerAppName = empty(backendContainerAppName)
-  ? take('${abbreviations.appContainerApps}backend-${environmentName}', 32)
-  : backendContainerAppName
 
-// ------------------------
-// Order is important:
-// 1. Executor
-// 2. Utility
 @description('Model deployment configurations')
 var deployments = loadYamlContent('./deployments.yaml')
 
-var _azureOpenAiEndpoint = useExistingAzureOpenAi ? azureOpenAiEndpoint : aiServices.outputs.endpoint
+@description('AI Foundry Endpoint - Base URL for API calls to AI Foundry')
+var _aiFoundryEndpoint = useExistingAiFoundry ? aiFoundryEndpoint : aiServices.outputs.endpoint
 
-@description('Azure OpenAI API Version')
-var _azureOpenAiApiVersion = empty(azureOpenAiApiVersion) ? '2024-12-01-preview' : azureOpenAiApiVersion
+@description('AI Foundry API Version')
+var _aiFoundryApiVersion = empty(aiFoundryApiVersion) ? '2025-05-01-preview' : aiFoundryApiVersion
 
-@description('Azure OpenAI Model Deployment Name - Executor Service')
-var _executorAzureOpenAiDeploymentName = !empty(executorAzureOpenAiDeploymentName)
-  ? executorAzureOpenAiDeploymentName
-  : deployments[0].name
-
-@description('Azure OpenAI Model Deployment Name - Utility Service')
-var _utilityAzureOpenAiDeploymentName = !empty(utilityAzureOpenAiDeploymentName)
-  ? utilityAzureOpenAiDeploymentName
-  : deployments[1].name
+var _projectConnectionString = 'https://${_aiFoundryName}.services.ai.azure.com/api/projects/${aiProject.outputs.name}'
 
 var _azureAiSearchLocation = empty(azureAiSearchLocation) ? location : azureAiSearchLocation
 var _azureAiSearchEndpoint = 'https://${_azureAiSearchName}.search.windows.net'
@@ -242,40 +227,127 @@ var _azureAiSearchEndpoint = 'https://${_azureAiSearchName}.search.windows.net'
 /*                                  RESOURCES                                 */
 /* -------------------------------------------------------------------------- */
 
-/* ------------------------------- AI Foundry  ------------------------------ */
+module containerRegistry 'br/public:avm/res/container-registry/registry:0.9.1' = {
+  name: '${deployment().name}-containerRegistry'
+  params: {
+    name: _containerRegistryName
+    location: location
+    tags: tags
+    acrSku: 'Standard'
+    acrAdminUserEnabled: true
+    roleAssignments: [
+      {
+        roleDefinitionIdOrName: 'AcrPull'
+        principalId: azurePrincipalId
+      }
+    ]
+  }
+}
 
-module aiHub 'modules/ai/hub.bicep' = {
-  name: '${deployment().name}-aiHub'
+module keyVault 'br/public:avm/res/key-vault/vault:0.12.1' = {
+  name: '${deployment().name}-keyVault'
+  scope: resourceGroup()
   params: {
     location: location
     tags: tags
-    name: _aiHubName
-    displayName: _aiHubName
-    keyVaultId: app.outputs.keyVaultResourceId
-    storageAccountId: storageAccount.outputs.resourceId
-    containerRegistryId: app.outputs.containerRegistryResourceId
-    applicationInsightsId: appInsightsComponent.outputs.resourceId
-    openAiName: useExistingAzureOpenAi ? azureOpenAiName : _azureOpenAiName
-    azureOpenAiResourceGroupName: useExistingAzureOpenAi ? azureOpenAiResourceGroupName : ''
-    openAiConnectionName: 'aoai-connection'
+    name: _keyVaultName
+    enableRbacAuthorization: true
+    enablePurgeProtection: false // Set to true to if you deploy in production and want to protect against accidental deletion
+    roleAssignments: [
+      {
+        roleDefinitionIdOrName: 'Key Vault Administrator'
+        principalId: azurePrincipalId
+      }
+    ]
+    secrets: useAuthentication && authClientSecret != ''
+      ? [
+          {
+            name: authClientSecretName
+            value: authClientSecret
+          }
+        ]
+      : []
+  }
+}
 
-    aiSearchName: useAiSearch ? _azureAiSearchName : ''
-    azureAiSearchResourceGroupName: useAiSearch ? azureAiSearchResourceGroupName : ''
-    aiSearchConnectionName: 'search-service-connection'
+//------------------------------ AI Foundry  ------------------------------ */
+
+// PROVISIONARY SOLUTION.
+// The module is being updated to support the latest Azure AI Foundry features.
+// Meanwhile created a local copy of 0.10.2 including "allowProjectManagement: true"
+// Also it requires managedIdentites to be set.
+// Once the official module is updated, we will switch back to it.
+module aiServices 'modules/ai/account.bicep' = if (!useExistingAiFoundry) {
+// module aiServices 'br/public:avm/res/cognitive-services/account:0.10.2' = if (!useExistingAiFoundry) {
+  name: '${deployment().name}-aiServices'
+  params: {
+    name: _aiFoundryName
+    location: empty(aiFoundryLocation) ? location : aiFoundryLocation
+    tags: tags
+    kind: 'AIServices'
+    customSubDomainName: _aiFoundryName
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+    }
+    disableLocalAuth: false
+    sku: 'S0'
+    deployments: deployments
+    managedIdentities: {
+      systemAssigned: true
+    }
+    diagnosticSettings: [
+      {
+        name: 'customSetting'
+        logCategoriesAndGroups: [
+          {
+            category: 'RequestResponse'
+          }
+          {
+            category: 'Audit'
+          }
+        ]
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
+      }
+    ]
+    roleAssignments: [
+      // See also https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/faq
+      {
+        roleDefinitionIdOrName: 'Cognitive Services OpenAI Contributor'
+        principalId: azurePrincipalId
+        principalType: 'User'
+      }
+      {
+        principalId: azurePrincipalId
+        roleDefinitionIdOrName: 'Cognitive Services User'
+        principalType: 'User'
+      }
+    ]
   }
 }
 
 module aiProject 'modules/ai/project.bicep' = {
-  name: '${deployment().name}-aiProject'
+  name: '${deployment().name}_2'
   params: {
     location: location
     tags: tags
     name: _aiProjectName
-    displayName: _aiProjectName
-    hubName: aiHub.outputs.name
+    aiFoundryName: aiServices.outputs.name
   }
 }
 
+@description('Azure OpenAI Model Deployment Name - Executor Service')
+var _aiDeploymentNameExecutor = deployments[0].name
+
+var _aiFoundryApiEndpoint = aiServices.outputs.endpoint
+// var _projectConnectionString = '${split(aiProject.outputs.discoveryUrl, '/')[2]};${subscription().subscriptionId};${resourceGroup().name};${aiProject.outputs.name}'
+
+// ------------------------------ Storage Account ------------------------------
 module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
   name: '${deployment().name}-storageAccount'
   scope: resourceGroup()
@@ -344,73 +416,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
   }
 }
 
-module aiServices 'br/public:avm/res/cognitive-services/account:0.10.2' = if (!useExistingAzureOpenAi) {
-  name: '${deployment().name}-aiServices'
-  params: {
-    name: _azureOpenAiName
-    location: empty(azureOpenAiLocation) ? location : azureOpenAiLocation
-    tags: tags
-    kind: 'AIServices'
-    customSubDomainName: _azureOpenAiName
-    publicNetworkAccess: 'Enabled'
-    networkAcls: {
-      defaultAction: 'Allow'
-    }
-    disableLocalAuth: false
-    sku: 'S0'
-    deployments: deployments
-    diagnosticSettings: [
-      {
-        name: 'customSetting'
-        logCategoriesAndGroups: [
-          {
-            category: 'RequestResponse'
-          }
-          {
-            category: 'Audit'
-          }
-        ]
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
-        workspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
-      }
-    ]
-    roleAssignments: [
-      // See also https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/faq
-      {
-        roleDefinitionIdOrName: 'Cognitive Services OpenAI User'
-        principalId: appIdentity.outputs.principalId
-        principalType: 'ServicePrincipal'
-      }
-      {
-        roleDefinitionIdOrName: 'Cognitive Services User'
-        principalId: appIdentity.outputs.principalId
-        principalType: 'ServicePrincipal'
-      }
-      {
-        roleDefinitionIdOrName: 'Cognitive Services OpenAI Contributor'
-        principalId: azurePrincipalId
-        principalType: 'User'
-      }
-      {
-        principalId: azurePrincipalId
-        roleDefinitionIdOrName: 'Cognitive Services User'
-        principalType: 'User'
-      }
-      {
-        // required for Document Intelligence Studio
-        roleDefinitionIdOrName: 'Contributor'
-        principalId: azurePrincipalId
-        principalType: 'User'
-      }
-    ]
-  }
-}
-
-module aiSearchService 'br/public:avm/res/search/search-service:0.9.2' = if (useAiSearch && !useExistingAiSearch) {
+module aiSearchService 'br/public:avm/res/search/search-service:0.10.0' = if (useAiSearch && !useExistingAiSearch) {
   name: '${deployment().name}-aiSearchService'
   scope: resourceGroup()
   params: {
@@ -463,20 +469,22 @@ module app 'modules/app.bicep' = {
     authClientSecret: authClientSecret
     authClientSecretName: authClientSecretName
     authTenantId: authTenantId
-    azureOpenAiApiVersion: _azureOpenAiApiVersion
-    azureOpenAiEndpoint: _azureOpenAiEndpoint
-    azurePrincipalId: azurePrincipalId
-    backendContainerAppName: _backendContainerAppName
-    backendExists: backendExists
+
     containerAppsEnvironmentName: _containerAppsEnvironmentName
     containerRegistryName: _containerRegistryName
-    executorAzureOpenAiDeploymentName: _executorAzureOpenAiDeploymentName
     frontendContainerAppName: _frontendContainerAppName
     frontendExists: frontendExists
     keyVaultName: _keyVaultName
     logAnalyticsWorkspaceResourceId: logAnalyticsWorkspace.outputs.resourceId
     useAuthentication: useAuthentication
-    utilityAzureOpenAiDeploymentName: _utilityAzureOpenAiDeploymentName
+    azurePrincipalId: azurePrincipalId
+
+    aiFoundryApiVersion: _aiFoundryApiVersion
+    aiFoundryApiEndpoint: _aiFoundryApiEndpoint
+
+    aiDeploymentNameExecutor: _aiDeploymentNameExecutor
+    aiFoundryProjectConnectionString: _projectConnectionString
+    aiFoundryProjectName: aiProject.outputs.name
   }
 }
 
@@ -532,23 +540,22 @@ output USE_AUTHENTICATION bool = useAuthentication
 @description('If true, deploy Azure AI Search Service')
 output USE_AI_SEARCH bool = useAiSearch
 
-@description('If true, reuse existing Azure OpenAI Service')
-output USE_EXISTING_AZURE_OPENAI bool = useExistingAzureOpenAi
+@description('If true, reuse existing AI Foundry Service')
+output USE_EXISTING_AI_FOUNDRY bool = useExistingAiFoundry
 
 @description('If true, reuse existing Azure AI Search Service')
 output USE_EXISTING_AI_SEARCH bool = useExistingAiSearch
 
 /* --------------------------- Apps Deployment ----------------------------- */
 
-@description('Endpoint URL of the Frontend service')
-output SERVICE_FRONTEND_URL string = app.outputs.frontendAppUrl
+/* -------------------------------- Frontend -------------------------------- */
 
-@description('Endpoint URL of the Backend service')
-output SERVICE_BACKEND_URL string = app.outputs.backendAppUrl
+// @description('Endpoint URL of the Frontend service')
+// output SERVICE_FRONTEND_URL string = frontendApp.outputs.frontendAppUrl
 
+// output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 @description('The endpoint of the container registry.') // necessary for azd deploy
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = app.outputs.containerRegistryLoginServer
-
 /* ------------------------ Authentication & RBAC ------------------------- */
 
 @description('ID of the tenant we are deploying to')
@@ -562,28 +569,39 @@ output AZURE_CLIENT_APP_ID string = authClientAppId
 
 /* -------------------------- Azure AI Foundry ----------------------------- */
 
+// TODO: decide between the two names
 @description('Azure AI Project connection string')
-output AZURE_AI_PROJECT_CONNECTION_STRING string = aiProject.outputs.connectionString
+output AI_FOUNDRY_PROJECT_CONNECTION_STRING string = _projectConnectionString
 
-/* ---------------------------- Azure OpenAI ------------------------------- */
+@description('Azure AI Project Endpoint')
+output AI_FOUNDRY_PROJECT_ENDPOINT string = _projectConnectionString
 
-@description('Azure OpenAI service name')
-output AZURE_OPENAI_NAME string = _azureOpenAiName
 
-@description('Azure OpenAI endpoint - Base URL for API calls to Azure OpenAI')
-output AZURE_OPENAI_ENDPOINT string = _azureOpenAiEndpoint
 
-@description('Azure OpenAI API Version - API version to use when calling Azure OpenAI')
-output AZURE_OPENAI_API_VERSION string = _azureOpenAiApiVersion
+@description('AI Foundry service name')
+output AI_FOUNDRY_NAME string = _aiFoundryName
 
-@description('Azure OpenAI Model Deployment Name - Executor Service')
-output EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME string = _executorAzureOpenAiDeploymentName
+@description('AI Foundry Project name')
+output AI_FOUNDRY_PROJECT_NAME string = aiProject.outputs.name
 
-@description('Azure OpenAI Model Deployment Name - Utility Service')
-output UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME string = _utilityAzureOpenAiDeploymentName
+@description('AI Foundry endpoint - Base URL for API calls to AI Foundry')
+output AI_FOUNDRY_ENDPOINT string = _aiFoundryEndpoint
+
+
+@description('AI Foundry API Version - API version to use when calling AI Foundry')
+output AI_FOUNDRY_API_VERSION string = _aiFoundryApiVersion
+
+// @description('Azure OpenAI Model Deployment Name - Executor Service')
+output AI_DEPLOYMENT_NAME_EXECUTOR string = _aiDeploymentNameExecutor
+
+// @description('Azure OpenAI Model Deployment Name - Utility Service')
+// output UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME string = _utilityAzureOpenAiDeploymentName
 
 @description('JSON deployment configuration for the models')
-output AZURE_OPENAI_DEPLOYMENTS object[] = deployments
+output AI_FOUNDRY_DEPLOYMENTS object[] = deployments
+
+//@description('Azure AI Content Understanding endpoint')
+//output AZURE_CONTENT_UNDERSTANDING_ENDPOINT string = 'https://${_azureAiFoundryName}.services.ai.azure.com/'
 
 /* ------------------------------ AI Search --------------------------------- */
 

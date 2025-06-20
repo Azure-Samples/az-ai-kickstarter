@@ -1,77 +1,45 @@
-@description('The AI Studio Hub Resource name')
+@description('The AI Foundry Project name')
 param name string
 
-@description('The display name of the AI Studio Hub Resource')
-param displayName string = name
+@description('The name of the AI Foundry Resource where this project should be connected')
+param aiFoundryName string
 
-@description('The name of the AI Studio Hub Resource where this project should be created')
-param hubName string
-
-@description('The SKU name to use for the AI Studio Hub Resource')
-param skuName string = 'Basic'
-
-@description('The SKU tier to use for the AI Studio Hub Resource')
-@allowed(['Basic', 'Free', 'Premium', 'Standard'])
-param skuTier string = 'Basic'
-
-@description('The public network access setting to use for the AI Studio Hub Resource')
-@allowed(['Enabled', 'Disabled'])
-param publicNetworkAccess string = 'Enabled'
+// @description('The public network access setting to use for the AI Studio Hub Resource')
+// @allowed(['Enabled', 'Disabled'])
+// param publicNetworkAccess string = 'Enabled'
 
 param location string = resourceGroup().location
 
 param tags object = {}
 
-resource project 'Microsoft.MachineLearningServices/workspaces@2024-01-01-preview' = {
-  name: name
+resource aiFoundryResource 'Microsoft.CognitiveServices/accounts@2025-04-01-preview' existing = {
+  name: aiFoundryName
+}
+
+resource project 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
+  // parent: aiFoundryResource
+  // name: name
+  name: '${aiFoundryName}/${name}'
   location: location
-  tags: tags
-  sku: {
-    name: skuName
-    tier: skuTier
-  }
-  kind: 'Project'
+  kind: 'AIServices'
   identity: {
     type: 'SystemAssigned'
   }
-  properties: {
-    friendlyName: displayName
-    hbiWorkspace: false
-    v1LegacyMode: false
-    publicNetworkAccess: publicNetworkAccess
-    hubResourceId: hub.id
-  }
-}
-/*
-module mlServiceRoleDataScientist 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
-  name: 'ml-service-role-data-scientist1'
-  params: {
-    resourceId: resourceGroup().id
-    principalId: project.identity.principalId
-    roleDefinitionId: 'f6c7c914-8db3-469d-8ca1-694a8f32e121'
-    principalType: 'ServicePrincipal'
-  }
+  // properties: {
+    // description: 'Default project created with the resource'
+    // displayName: 'rh05-manual-prj'
+  // }
+  properties: {}
 }
 
-module mlServiceRoleSecretsReader 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
-  name: 'ml-service-role-secrets-reader'
-  params: {
-    resourceId: resourceGroup().id
-    principalId: project.identity.principalId
-    roleDefinitionId: 'ea01e6af-a1c1-4350-9563-ad00f8c72ec5'
-    principalType: 'ServicePrincipal'
-  }
-}
-*/
-resource hub 'Microsoft.MachineLearningServices/workspaces@2024-01-01-preview' existing = {
-  name: hubName
-}
-
-@description('The resource id of the AI Studio Hub Resource')
+@description('The resource id of the AI Project Hub Resource')
 output resourceId string = project.id
 
-@description('Azure AI Foundry project name')
-output name string = project.name
+@description('Azure AI Foundry project full name')
+output full_name string = project.name
 
-@description('Azure AI Foundry project connection string')
-output connectionString string = '${split(project.properties.discoveryUrl, '/')[2]};${subscription().subscriptionId};${resourceGroup().name};${project.name}'
+@description('Azure AI Foundry project short name')
+output name string = name
+
+// @description('Azure AI Foundry project connection string')
+// output connectionString string = '${split(project.properties.endpoints['0'].url, '/')[2]};${subscription().subscriptionId};${resourceGroup().name};${project.name}'

@@ -15,8 +15,8 @@
     "useAuthentication": {
       "value": "${USE_AUTHENTICATION=false}"
     },
-    "useExistingAzureOpenAi": {
-      "value": "${USE_EXISTING_AZURE_OPENAI=false}"
+    "useExistingAiFoundry": {
+      "value": "${USE_EXISTING_AI_FOUNDRY=false}"
     },
     "useExistingAiSearch": {
       "value": "${USE_EXISTING_AI_SEARCH=false}"
@@ -42,23 +42,23 @@
       "value": "${AZURE_CLIENT_APP_SECRET}"
     },
 
-    "azureOpenAiName": {
-      "value": "${AZURE_OPENAI_NAME}"
+    "azureAiFoundryName": {
+      "value": "${AZURE_AI_FOUNDRY_NAME}"
     },
-    "azureOpenAiEndpoint": {
-      "value": "${AZURE_OPENAI_ENDPOINT}"
+    "azureAiFoundryEndpoint": {
+      "value": "${AZURE_AI_FOUNDRY_ENDPOINT}"
     },
-    "azureOpenAiApiVersion": {
-      "value": "${AZURE_OPENAI_API_VERSION}"
+    "azureAiFoundryApiVersion": {
+      "value": "${AZURE_AI_FOUNDRY_API_VERSION}"
     },
     "azureOpenAiResourceGroupName": {
-      "value": "${AZURE_OPENAI_RESOURCE_GROUP_NAME}"
+      "value": "${AZURE_AI_FOUNDRY_RESOURCE_GROUP_NAME}"
     },
-    "executorAzureOpenAiDeploymentName": {
-      "value": "${EXECUTOR_AZURE_OPENAI_DEPLOYMENT_NAME}"
+    "executorAiFoundryDeploymentName": {
+      "value": "${EXECUTOR_AI_FOUNDRY_DEPLOYMENT_NAME}"
     },
-    "utilityAzureOpenAiDeploymentName": {
-      "value": "${UTILITY_AZURE_OPENAI_DEPLOYMENT_NAME}"
+    "utilityAiFoundryDeploymentName": {
+      "value": "${UTILITY_AI_FOUNDRY_DEPLOYMENT_NAME}"
     },
 
     "azureAiSearchName": {
