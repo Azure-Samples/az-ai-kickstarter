@@ -54,13 +54,6 @@
     "azureOpenAiResourceGroupName": {
       "value": "${AZURE_AI_FOUNDRY_RESOURCE_GROUP_NAME}"
     },
-    "executorAiFoundryDeploymentName": {
-      "value": "${EXECUTOR_AI_FOUNDRY_DEPLOYMENT_NAME}"
-    },
-    "utilityAiFoundryDeploymentName": {
-      "value": "${UTILITY_AI_FOUNDRY_DEPLOYMENT_NAME}"
-    },
-
     "azureAiSearchName": {
       "value": "${AZURE_AI_SEARCH_NAME}"
     },

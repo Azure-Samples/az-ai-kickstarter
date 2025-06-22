@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import requests
-import streamlit as st
 from dotenv import load_dotenv
 from io import StringIO
 from subprocess import run, PIPE
@@ -83,38 +82,38 @@ def is_valid_json(json_string):
 # Initialize environment
 load_dotenv_from_azd()
 
-# Setup sidebar with user information and logout link
-st.sidebar.write(f"Welcome, {get_principal_display_name()}!")
-st.sidebar.markdown(
-    '<a href="/.auth/logout" target = "_self">Sign Out</a>', unsafe_allow_html=True
-)
+# # Setup sidebar with user information and logout link
+# st.sidebar.write(f"Welcome, {get_principal_display_name()}!")
+# st.sidebar.markdown(
+#     '<a href="/.auth/logout" target = "_self">Sign Out</a>', unsafe_allow_html=True
+# )
 
-# Main content area - blog post generation
-st.write("Requesting a blog post about cookies:")
-result = None
-with st.status("Agents are crafting a response...", expanded=True) as status:
-    try:
-        # Call backend API to generate blog post
-        url = f'{os.getenv("BACKEND_ENDPOINT", "http://localhost:8000")}/blog'
-        payload = {"topic": "cookies", "user_id": get_principal_id()}
-        headers = {}
+# # Main content area - blog post generation
+# st.write("Requesting a blog post about cookies:")
+# result = None
+# with st.status("Agents are crafting a response...", expanded=True) as status:
+#     try:
+#         # Call backend API to generate blog post
+#         url = f'{os.getenv("BACKEND_ENDPOINT", "http://localhost:8000")}/blog'
+#         payload = {"topic": "cookies", "user_id": get_principal_id()}
+#         headers = {}
         
-        # Processing treaming responses
-        # Each chunk can be be either a string or contain JSON. 
-        # If the chunk is a string it is a status action update - "Critic evaluates the text". 
-        # If it is a JSON it will contain the generated blog post content.
-        with requests.post(url, json=payload, headers={}, stream=True) as response:
-            for line in response.iter_lines():
-                result = line.decode('utf-8')
-                # For each line as JSON
-                # result = json.loads(line.decode('utf-8'))
-                if not is_valid_json(result):
-                   status.write(result)  
+#         # Processing treaming responses
+#         # Each chunk can be be either a string or contain JSON. 
+#         # If the chunk is a string it is a status action update - "Critic evaluates the text". 
+#         # If it is a JSON it will contain the generated blog post content.
+#         with requests.post(url, json=payload, headers={}, stream=True) as response:
+#             for line in response.iter_lines():
+#                 result = line.decode('utf-8')
+#                 # For each line as JSON
+#                 # result = json.loads(line.decode('utf-8'))
+#                 if not is_valid_json(result):
+#                    status.write(result)  
                    
-        status.update(label="Backend call complete", state="complete", expanded=False)
-    except Exception as e:
-        status.update(
-            label=f"Backend call failed: {e}", state="complete", expanded=False
-        )
+#         status.update(label="Backend call complete", state="complete", expanded=False)
+#     except Exception as e:
+#         status.update(
+#             label=f"Backend call failed: {e}", state="complete", expanded=False
+#         )
         
-st.markdown(json.loads(result)["content"])
+# st.markdown(json.loads(result)["content"])

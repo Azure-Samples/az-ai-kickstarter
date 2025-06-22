@@ -1,6 +1,8 @@
 {
-  "aiPortalHub": "hub-",
-  "aiPortalProject": "proj-",
+  "aiFoundryHub": "hub-",
+  "aiFoundryHubProject": "proj-",
+  "aiFoundryAccount": "aif-",
+  "aiFoundryAccountProject": "proj-",
   "analysisServicesServers": "as",
   "apiManagementService": "apim-",
   "appConfigurationStores": "appcs-",
