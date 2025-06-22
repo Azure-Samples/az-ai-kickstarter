@@ -8,3 +8,5 @@ if ($env:DEBUG -match '^1|yes|true$') {
 # Add here commands that need to be executed after deployment
 # Typically: preparing additional environment variables, creating app registrations, etc.
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
+
+uv run --directory src/frontend load_agents.py

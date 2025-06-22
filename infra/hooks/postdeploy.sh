@@ -6,3 +6,4 @@ set -euo pipefail
 # Typically: loading data in databases, AI Search or storage accounts, etc.
 # see https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/azd-extensibility
 
+uv run --directory src/frontend load_agents.py

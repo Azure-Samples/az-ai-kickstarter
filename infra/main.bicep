@@ -179,6 +179,8 @@ var _storageAccountName = take(
   '${abbreviations.storageStorageAccounts}${alphaNumericEnvironmentName}${resourceToken}',
   24
 )
+
+// TODO: review the naming convention for AI Foundry resource
 var _aiFoundryName = useExistingAiFoundry
   ? aiFoundryName // if reusing existing service, use the provided name
   : (empty(aiFoundryName) // else use only if not empty to override the default name
@@ -218,7 +220,7 @@ var _aiFoundryEndpoint = useExistingAiFoundry ? aiFoundryEndpoint : aiServices.o
 @description('AI Foundry API Version')
 var _aiFoundryApiVersion = empty(aiFoundryApiVersion) ? '2025-05-01-preview' : aiFoundryApiVersion
 
-var _projectConnectionString = 'https://${_aiFoundryName}.services.ai.azure.com/api/projects/${aiProject.outputs.name}'
+var _aiFoundryProjectEndpoint = 'https://${_aiFoundryName}.services.ai.azure.com/api/projects/${aiProject.outputs.name}'
 
 var _azureAiSearchLocation = empty(azureAiSearchLocation) ? location : azureAiSearchLocation
 var _azureAiSearchEndpoint = 'https://${_azureAiSearchName}.search.windows.net'
@@ -272,13 +274,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.12.1' = {
 
 //------------------------------ AI Foundry  ------------------------------ */
 
-// PROVISIONARY SOLUTION.
-// The module is being updated to support the latest Azure AI Foundry features.
-// Meanwhile created a local copy of 0.10.2 including "allowProjectManagement: true"
-// Also it requires managedIdentites to be set.
-// Once the official module is updated, we will switch back to it.
-module aiServices 'modules/ai/account.bicep' = if (!useExistingAiFoundry) {
-// module aiServices 'br/public:avm/res/cognitive-services/account:0.10.2' = if (!useExistingAiFoundry) {
+module aiServices 'br/public:avm/res/cognitive-services/account:0.11.0' = if (!useExistingAiFoundry) {
   name: '${deployment().name}-aiServices'
   params: {
     name: _aiFoundryName
@@ -316,6 +312,7 @@ module aiServices 'modules/ai/account.bicep' = if (!useExistingAiFoundry) {
       }
     ]
     roleAssignments: [
+      // TODO: review
       // See also https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/faq
       {
         roleDefinitionIdOrName: 'Cognitive Services OpenAI Contributor'
@@ -331,13 +328,35 @@ module aiServices 'modules/ai/account.bicep' = if (!useExistingAiFoundry) {
   }
 }
 
-module aiProject 'modules/ai/project.bicep' = {
-  name: '${deployment().name}_2'
+module aiProject 'br/public:avm/res/cognitive-services/account:0.11.0' = {
+  name: '${deployment().name}-aiProject'
   params: {
-    location: location
-    tags: tags
     name: _aiProjectName
-    aiFoundryName: aiServices.outputs.name
+    location: empty(aiFoundryLocation) ? location : aiFoundryLocation
+    tags: tags
+    kind: 'AIServices'
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+    }
+    disableLocalAuth: false
+    managedIdentities: {
+      systemAssigned: true
+    }
+    roleAssignments: [
+      // TODO: review
+      // See also https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/faq
+      {
+        roleDefinitionIdOrName: 'Cognitive Services OpenAI Contributor'
+        principalId: azurePrincipalId
+        principalType: 'User'
+      }
+      {
+        principalId: azurePrincipalId
+        roleDefinitionIdOrName: 'Cognitive Services User'
+        principalType: 'User'
+      }
+    ]
   }
 }
 
@@ -345,7 +364,7 @@ module aiProject 'modules/ai/project.bicep' = {
 var _aiDeploymentNameExecutor = deployments[0].name
 
 var _aiFoundryApiEndpoint = aiServices.outputs.endpoint
-// var _projectConnectionString = '${split(aiProject.outputs.discoveryUrl, '/')[2]};${subscription().subscriptionId};${resourceGroup().name};${aiProject.outputs.name}'
+// var _aiFoundryProjectEndpoint = '${split(aiProject.outputs.discoveryUrl, '/')[2]};${subscription().subscriptionId};${resourceGroup().name};${aiProject.outputs.name}'
 
 // ------------------------------ Storage Account ------------------------------
 module storageAccount 'br/public:avm/res/storage/storage-account:0.19.0' = {
@@ -483,7 +502,7 @@ module app 'modules/app.bicep' = {
     aiFoundryApiEndpoint: _aiFoundryApiEndpoint
 
     aiDeploymentNameExecutor: _aiDeploymentNameExecutor
-    aiFoundryProjectConnectionString: _projectConnectionString
+    aiFoundryProjectConnectionString: _aiFoundryProjectEndpoint
     aiFoundryProjectName: aiProject.outputs.name
   }
 }
@@ -571,12 +590,17 @@ output AZURE_CLIENT_APP_ID string = authClientAppId
 
 // TODO: decide between the two names
 @description('Azure AI Project connection string')
-output AI_FOUNDRY_PROJECT_CONNECTION_STRING string = _projectConnectionString
+output AI_FOUNDRY_PROJECT_CONNECTION_STRING string = _aiFoundryProjectEndpoint
 
 @description('Azure AI Project Endpoint')
-output AI_FOUNDRY_PROJECT_ENDPOINT string = _projectConnectionString
+output AI_FOUNDRY_PROJECT_ENDPOINT string = _aiFoundryProjectEndpoint
 
+// TODO: review
+@description('Azure AI Foundry Project Endpoints - Endpoints for the AI Foundry Project')
+output AZURE_AI_FOUNDRY_PROJECT_ENDPOINTS object = aiProject.outputs.endpoints
 
+@description('Azure AI Foundry Project Endpoint - Base URL for API calls to AI Foundry Project')
+output AZURE_AI_AGENT_ENDPOINT string = _aiFoundryProjectEndpoint
 
 @description('AI Foundry service name')
 output AI_FOUNDRY_NAME string = _aiFoundryName
