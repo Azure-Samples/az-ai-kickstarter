@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 import yaml
-from app import load_dotenv_from_azd
+from utils import load_dotenv_from_azd
 from azure.identity.aio import DefaultAzureCredential
 from rich.console import Console
 from semantic_kernel.agents import (
