@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ${DEBUG-} =~ ^1|yes|true$ ]] && set -o xtrace
 
 # Add here commands that need to be executed after provisioning
 # Typically: loading data in databases, AI Search or storage accounts, etc.

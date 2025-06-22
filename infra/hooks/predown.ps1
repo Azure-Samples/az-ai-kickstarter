@@ -1,8 +1,8 @@
-Set-StrictMode -Version Latest
+#!/usr/bin/env pwsh
 $ErrorActionPreference = 'Stop'
-
-if ($env:DEBUG -match '^(1|yes|true)$') {
-    Set-PSDebug -Trace 1
+Set-StrictMode -Version Latest
+if ($env:DEBUG -match '^1|yes|true$') {
+    Set-PSDebug -Trace 2
 }
 
 # Add here commands that need to be executed before provisioning

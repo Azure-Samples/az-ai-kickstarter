@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 [[ ${DEBUG-} =~ ^1|yes|true$ ]] && set -o xtrace
 

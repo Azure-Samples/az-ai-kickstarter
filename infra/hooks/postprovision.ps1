@@ -1,4 +1,9 @@
 #!/usr/bin/env pwsh
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
+if ($env:DEBUG -match '^1|yes|true$') {
+    Set-PSDebug -Trace 2
+}
 
 # Add here commands that need to be executed after provisioning
 # Typically: loading data in databases, AI Search or storage accounts, etc.
