@@ -60,6 +60,12 @@ param aiFoundryProjectConnectionString string = ''
 @description('The Azure AI Foundry Project Name.')
 param aiFoundryProjectName string = ''
 
+@description('The default model used for AI Agents')
+param aiAgentModelDeploymentName string
+
+@description('Azure AI Foundry Project Endpoint')
+param aiFoundryProjectEndpoint string
+
 // @description('Optional. The API version of the Azure OpenAI resource to reuse. Used only if useExistingAzureOpenAi is true.')
 // param azureOpenAiApiVersion string = ''
 
@@ -183,6 +189,10 @@ module frontendApp 'app/container-apps.bicep' = {
       AI_DEPLOYMENT_NAME_EXECUTOR: aiDeploymentNameExecutor
       AI_FOUNDRY_PROJECT_CONNECTION_STRING: aiFoundryProjectConnectionString
       AI_FOUNDRY_PROJECT_NAME: aiFoundryProjectName
+
+      // Required for Semantic Kernel + Azure AI Foundry Agents
+      AZURE_AI_AGENT_ENDPOINT: aiFoundryProjectEndpoint
+      AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME: aiAgentModelDeploymentName
 
       // Required for the frontend app to ask for a token for the backend app
       AZURE_CLIENT_APP_ID: authClientAppId

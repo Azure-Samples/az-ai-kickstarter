@@ -13,6 +13,7 @@ from semantic_kernel.agents import (
 load_dotenv_from_azd()
 console = Console()
 
+
 async def main() -> None:
     """Main function to load agents from YAML files and create/update them in Azure AI."""
     async with (
@@ -23,7 +24,9 @@ async def main() -> None:
 
         if os.environ.get("RELOAD") is not None:
             for agent in agents.values():
-                console.print(f"Deleting agent: [bold cyan]{agent.name}[/] - [blue]{agent.description}[/]...")
+                console.print(
+                    f"Deleting agent: [bold cyan]{agent.name}[/] - [blue]{agent.description}[/]..."
+                )
                 await client.agents.delete_agent(agent_id=agent.id)
             agents = {}
 
@@ -31,7 +34,9 @@ async def main() -> None:
             with open(spec, "r") as f:
                 agent_spec = yaml.safe_load(f)
                 if "model" not in agent_spec:
-                    agent_spec["model"] = os.environ["AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME"]
+                    agent_spec["model"] = os.environ[
+                        "AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME"
+                    ]
 
             if agent_spec["name"] not in agents:
                 console.print(
@@ -45,9 +50,9 @@ async def main() -> None:
                 for t in agents[agent_spec["name"]].tools:
                     console.print(f"  - Tool: [bold cyan]{t}[/]")
                 await client.agents.update_agent(
-                    agent_id=agents[agent_spec["name"]].id,
-                    **agent_spec
-                ) 
+                    agent_id=agents[agent_spec["name"]].id, **agent_spec
+                )
+
 
 if __name__ == "__main__":
     asyncio.run(main())

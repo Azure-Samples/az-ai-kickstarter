@@ -208,6 +208,8 @@ var _frontendContainerAppName = empty(frontendContainerAppName)
 @description('Model deployment configurations')
 var deployments = loadYamlContent('./deployments.yaml')
 
+var _aiFoundryAgentModelDeploymentName = deployments[0].name
+
 @description('AI Foundry Endpoint - Base URL for API calls to AI Foundry')
 var _aiFoundryEndpoint = useExistingAiFoundry ? aiFoundryEndpoint : aiFoundryAccount.outputs.endpoint
 
@@ -218,6 +220,8 @@ var _aiFoundryProjectEndpoint = 'https://${_aiFoundryAccountName}.services.ai.az
 
 var _azureAiSearchLocation = empty(azureAiSearchLocation) ? location : azureAiSearchLocation
 var _azureAiSearchEndpoint = 'https://${_azureAiSearchName}.search.windows.net'
+
+
 
 /* -------------------------------------------------------------------------- */
 /*                                  RESOURCES                                 */
@@ -318,6 +322,13 @@ module aiFoundryAccount 'br/public:avm/res/cognitive-services/account:0.11.0' = 
         principalId: azurePrincipalId
         roleDefinitionIdOrName: 'Cognitive Services User'
         principalType: 'User'
+      }
+      // See also https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/rbac-azure-ai-foundry
+      {
+        principalId: appIdentity.outputs.principalId
+        // Azure AI User (TODO: change when AVM supports it)
+        roleDefinitionIdOrName: '53ca6127-db72-4b80-b1b0-d745d6d5456d' 
+        principalType: 'ServicePrincipal'
       }
     ]
   }
@@ -474,8 +485,11 @@ module app 'modules/app.bicep' = {
     useAuthentication: useAuthentication
     azurePrincipalId: azurePrincipalId
 
-    aiFoundryApiVersion: _aiFoundryApiVersion
     aiFoundryApiEndpoint: _aiFoundryApiEndpoint
+    aiFoundryApiVersion: _aiFoundryApiVersion
+
+    aiFoundryProjectEndpoint: _aiFoundryProjectEndpoint
+    aiAgentModelDeploymentName: _aiFoundryAgentModelDeploymentName
 
     aiDeploymentNameExecutor: _aiDeploymentNameExecutor
     aiFoundryProjectConnectionString: _aiFoundryProjectEndpoint
@@ -588,7 +602,7 @@ output AI_FOUNDRY_PROJECT_NAME string = aiFoundryAccountProject.name
 output AI_FOUNDRY_ENDPOINT string = _aiFoundryEndpoint
 
 @description('AI Foundry Agent Model Deployment Name')
-output AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME string = deployments[0].name
+output AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME string = _aiFoundryAgentModelDeploymentName
 
 
 @description('AI Foundry API Version - API version to use when calling AI Foundry')

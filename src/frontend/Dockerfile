@@ -31,6 +31,7 @@ RUN uv sync \
     --all-packages
 
 COPY app.py /app/
+COPY utils.py /app/
 
 ###############
 # Final image #
@@ -46,4 +47,4 @@ COPY --from=builder --chown=app:app /app /app
 WORKDIR /app
 
 EXPOSE 8000
-ENTRYPOINT ["/app/.venv/bin/streamlit", "run", "app.py", "--server.port=8000", "--server.address=0.0.0.0"]
+ENTRYPOINT ["/app/.venv/bin/chainlit", "run", "app.py", "--port", "8000", "--host", "0.0.0.0"]

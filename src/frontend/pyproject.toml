@@ -5,7 +5,6 @@ description = "AI Applications Chassis - AI Apps Best Practices Tailored for Azu
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "requests ~=2.32.3",
     "python-dotenv ~=1.0.1",
     "semantic-kernel>=1.32.2",
     "rich>=14.0.0",

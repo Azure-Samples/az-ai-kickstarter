@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 import logging
 
+
 def load_dotenv_from_azd():
     """
     Load environment variables from Azure Developer CLI (azd) or fallback to .env file.

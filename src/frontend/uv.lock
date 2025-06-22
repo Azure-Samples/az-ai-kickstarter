@@ -599,7 +599,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "chainlit" },
     { name = "python-dotenv" },
-    { name = "requests" },
     { name = "rich" },
     { name = "semantic-kernel" },
 ]
@@ -608,7 +607,6 @@ dependencies = [
 requires-dist = [
     { name = "chainlit", specifier = ">=2.5.5" },
     { name = "python-dotenv", specifier = "~=1.0.1" },
-    { name = "requests", specifier = "~=2.32.3" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "semantic-kernel", specifier = ">=1.32.2" },
 ]

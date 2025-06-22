@@ -2,7 +2,6 @@
 Chainlit frontend application for our multiagentic application.
 """
 
-import base64
 import json
 import logging
 
@@ -22,46 +21,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
     handlers=[logging.StreamHandler(console.file)],
 )
-
-
-def get_principal_id():
-    """
-    Retrieve the current user's principal ID from request headers.
-    If the application is running in Azure Container Apps, and is configured for authentication,
-    the principal ID is extracted from the 'x-ms-client-principal-id' header.
-    If the header is not present, a default user ID is returned.
-
-    Returns:
-        str: The user's principal ID if available, otherwise 'default_user_id'
-    """
-    result = st.context.headers.get("x-ms-client-principal-id")
-    logging.info(f"Retrieved principal ID: {result if result else 'default_user_id'}")
-    return result if result else "default_user_id"
-
-
-def get_principal_display_name():
-    """
-    Get the display name of the current user from the request headers.
-
-    Extracts user information from the 'x-ms-client-principal' header used in
-    Azure Container Apps authentication.
-
-    Returns:
-        str: The user's display name if available, otherwise 'Default User'
-
-    See https://learn.microsoft.com/en-us/azure/container-apps/authentication#access-user-claims-in-application-code for more information.
-    """
-    default_user_name = "Default User"
-    principal = st.context.headers.get("x-ms-client-principal")
-    if principal:
-        principal = json.loads(base64.b64decode(principal).decode("utf-8"))
-        claims = principal.get("claims", [])
-        return next(
-            (claim["val"] for claim in claims if claim["typ"] == "name"),
-            default_user_name,
-        )
-    else:
-        return default_user_name
 
 
 def is_valid_json(json_string):
@@ -106,11 +65,6 @@ async def chat_profile():
 
 @cl.on_chat_start
 async def on_chat_start():
-    """
-    Callback function to handle actions when a chat session starts.
-
-    This function is called when the chat session begins, allowing for any necessary setup or initialization.
-    """
     logging.info("---------------- Starting chat session...")
     client = AzureAIAgent.create_client(credential=credential)
     cl.user_session.set("client", client)
@@ -136,19 +90,10 @@ async def on_chat_start():
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    """
-    Callback function to handle incoming messages in the chat session.
-
-    This function processes the incoming message and sends it to the selected agent for processing.
-
-    Args:
-        message (cl.Message): The incoming message object containing user input.
-    """
     logging.info(f"---------------- Received message: {message.content}...")
 
     client = cl.user_session.get("client")
     agent_definition = cl.user_session.get("agent")
-    client = None
 
     if not client or not agent_definition:
         await cl.Message(
