@@ -27,7 +27,7 @@ async def main() -> None:
                 await client.agents.delete_agent(agent_id=agent.id)
             agents = {}
 
-        for spec in Path("agents").glob("*.yaml"):
+        for spec in sorted(Path("agents").glob("*.yaml")):
             with open(spec, "r") as f:
                 agent_spec = yaml.safe_load(f)
                 if "model" not in agent_spec:
