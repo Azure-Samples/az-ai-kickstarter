@@ -291,6 +291,7 @@ module aiFoundryAccount 'br/public:avm/res/cognitive-services/account:0.11.0' = 
     managedIdentities: {
       systemAssigned: true
     }
+    
     diagnosticSettings: [
       {
         name: 'customSetting'
@@ -334,12 +335,34 @@ module aiFoundryAccount 'br/public:avm/res/cognitive-services/account:0.11.0' = 
   }
 }
 
+resource aiFoundryAccountAppInsightConnection 'Microsoft.CognitiveServices/accounts/connections@2025-04-01-preview' = {
+  name: '${_aiFoundryAccountName}/appInsights-connection'
+  properties: {
+    authType: 'ApiKey'
+    credentials: {
+      key: appInsightsComponent.outputs.instrumentationKey
+    }
+    category: 'AppInsights'
+    target: appInsightsComponent.outputs.resourceId
+    useWorkspaceManagedIdentity: false
+    isSharedToAll: false
+    sharedUserList: []
+    peRequirement: 'NotRequired'
+    peStatus: 'NotApplicable'
+    metadata: {
+      ApiType: 'Azure'
+      ResourceId: appInsightsComponent.outputs.resourceId
+    }
+  }
+}
+
 resource aiFoundryAccountProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
   name: '${_aiFoundryAccountName}/${_aiFoundryAccountProjectName}'
   location: empty(aiFoundryLocation) ? location : aiFoundryLocation
   identity: {
     type: 'SystemAssigned'
   }
+
   properties: {
 
   }

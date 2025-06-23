@@ -1,19 +1,18 @@
 """
 Chainlit frontend application for our multiagentic application.
 """
-
 import json
 import logging
+import os
 
 import chainlit as cl
-
+import utils
 from azure.identity.aio import DefaultAzureCredential
 from rich.console import Console
 from semantic_kernel.agents import (
     AzureAIAgent,
     AzureAIAgentThread,
 )
-from utils import load_dotenv_from_azd
 
 console = Console()
 logging.basicConfig(
@@ -41,8 +40,20 @@ def is_valid_json(json_string):
 
 
 # Initialize environment
-load_dotenv_from_azd()
+utils.load_dotenv_from_azd()
+utils.set_up_tracing
+utils.set_up_metrics()
+utils.set_up_logging()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:   %(name)s   %(message)s',
+)
+logger = logging.getLogger(__name__)
+logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
+logging.getLogger('azure.monitor.opentelemetry.exporter.export').setLevel(logging.WARNING)
+
+logger.info("Diagnostics: %s", os.getenv('SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS'))
 
 credential = DefaultAzureCredential()
 
