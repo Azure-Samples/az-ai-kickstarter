@@ -33,7 +33,11 @@ from opentelemetry.sdk.trace.export import (
 )
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import set_tracer_provider
-
+from azure.monitor.opentelemetry import configure_azure_monitor
+from dotenv import load_dotenv
+from opentelemetry import trace
+from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
+from rich.logging import RichHandler
 
 def load_dotenv_from_azd():
     """
@@ -50,157 +54,29 @@ def load_dotenv_from_azd():
         logging.info("AZD environment not found. Trying to load from .env file...")
         load_dotenv()
 
-
-def load_dotenv_from_azd():
-    """
-    Loads environment variables from Azure Developer CLI (azd) or .env file.
-
-    Attempts to load environment variables using the azd CLI first.
-    If that fails, falls back to loading from a .env file in the current directory.
-    """
-    result = run("azd env get-values", stdout=PIPE, stderr=PIPE, shell=True, text=True)
-    if result.returncode == 0:
-        logging.info(f"Found AZD environment. Loading...")
-        load_dotenv(stream=StringIO(result.stdout))
-    else:
-        logging.info(f"AZD environment not found. Trying to load from .env file...")
-        load_dotenv()
-
-
-telemetry_resource = Resource.create(
-    {
-        ResourceAttributes.SERVICE_NAME: os.getenv(
-            "AZURE_RESOURCE_GROUP", "ai-accelerator"
-        )
-    }
-)
-
-# Set endpoint to the local Aspire Dashboard endpoint to enable local telemetry - DISABLED by default
-local_endpoint = None
-# local_endpoint = "http://localhost:4317"
-
-
-def set_up_tracing():
-    """
-    Sets up exporters for Azure Monitor and optional local telemetry.
-    """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info(
-            "APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup."
-        )
-        return
-
-    exporters = []
-    exporters.append(
-        AzureMonitorTraceExporter.from_connection_string(
-            os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-        )
+def setup_telemetry(name):
+    logging.info("Setting up logging with RichHandler...")
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(rich_tracebacks=True)],
     )
-    if local_endpoint:
-        exporters.append(OTLPSpanExporter(endpoint=local_endpoint))
+    #logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
+    #logging.getLogger('azure.monitor.opentelemetry.exporter.export').setLevel(logging.WARNING)
+    logger = logging.getLogger(__name__)
 
-    tracer_provider = TracerProvider(resource=telemetry_resource)
-    for trace_exporter in exporters:
-        tracer_provider.add_span_processor(BatchSpanProcessor(trace_exporter))
-    set_tracer_provider(tracer_provider)
+    os.environ["AZURE_TRACING_GEN_AI_CONTENT_RECORDING_ENABLED"] = "true"
+    os.environ["OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"] = "true"
 
+    logger.info("Configuring Azure Monitor for OpenTelemetry...")
+    application_insights_connection_string = os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"]
+    configure_azure_monitor(connection_string=application_insights_connection_string)
 
-def set_up_metrics():
-    """
-    Configures metrics collection with OpenTelemetry.
-    Configures views to filter metrics to only those starting with "semantic_kernel".
-    """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info(
-            "APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup."
-        )
-        return
+    logging.info("Instrumenting OpenAI SDK for Azure OpenAI...")
+    OpenAIInstrumentor().instrument()
 
-    exporters = []
-    if local_endpoint:
-        exporters.append(OTLPMetricExporter(endpoint=local_endpoint))
-    exporters.append(
-        AzureMonitorMetricExporter.from_connection_string(
-            os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-        )
-    )
+    logger.info("Diagnostics: %s", os.getenv('SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS'))
+    logger.info("Setting up OpenTelemetry tracer...")
+    return trace.get_tracer(name)
 
-    metric_readers = [
-        PeriodicExportingMetricReader(exporter, export_interval_millis=5000)
-        for exporter in exporters
-    ]
-
-    meter_provider = MeterProvider(
-        metric_readers=metric_readers,
-        resource=telemetry_resource,
-        views=[
-            # Dropping all instrument names except for those starting with "semantic_kernel"
-            View(instrument_name="*", aggregation=DropAggregation()),
-            View(instrument_name="semantic_kernel*"),
-        ],
-    )
-    set_meter_provider(meter_provider)
-
-
-def set_up_logging():
-    """
-    Configures logging with OpenTelemetry.
-    Adds filters to exclude specific namespace logs for cleaner output.
-    """
-    if not os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
-        logging.info(
-            "APPLICATIONINSIGHTS_CONNECTION_STRING is not set skipping observability setup."
-        )
-        return
-
-    exporters = []
-    exporters.append(
-        AzureMonitorLogExporter(
-            connection_string=os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-        )
-    )
-
-    if local_endpoint:
-        exporters.append(OTLPLogExporter(endpoint=local_endpoint))
-    # exporters.append(ConsoleLogExporter())
-
-    logger_provider = LoggerProvider(resource=telemetry_resource)
-    set_logger_provider(logger_provider)
-
-    handler = LoggingHandler()
-
-    logger = logging.getLogger()
-    logger.addHandler(handler)
-    logger.setLevel(logging.INFO)
-
-    for log_exporter in exporters:
-        logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
-
-    # FILTER - WHAT NOT TO LOG
-    class KernelFilter(logging.Filter):
-        """
-        A filter to exclude logs from specific semantic_kernel namespaces.
-
-        Prevents excessive logging from specified module namespaces to reduce noise.
-        """
-
-        # These are the namespaces that we want to exclude from logging for the purposes of this demo.
-        namespaces_to_exclude: list[str] = [
-            # "semantic_kernel.functions.kernel_plugin",
-            "semantic_kernel.prompt_template.kernel_prompt_template",
-            # "semantic_kernel.functions.kernel_function",
-            "azure.monitor.opentelemetry.exporter.export._base",
-            "azure.core.pipeline.policies.http_logging_policy",
-        ]
-
-        def filter(self, record):
-            return not any(
-                [
-                    record.name.startswith(namespace)
-                    for namespace in self.namespaces_to_exclude
-                ]
-            )
-
-    # FILTER - WHAT TO LOG - EXPLICITLY
-    # handler.addFilter(logging.Filter("semantic_kernel"))
-    handler.addFilter(KernelFilter())

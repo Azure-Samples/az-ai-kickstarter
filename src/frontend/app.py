@@ -1,74 +1,32 @@
 """
 Chainlit frontend application for our multiagentic application.
 """
-import json
-import logging
-import os
 
-import chainlit as cl
-import utils
+import logging
+from utils import load_dotenv_from_azd, setup_telemetry
 from azure.identity.aio import DefaultAzureCredential
-from rich.console import Console
 from semantic_kernel.agents import (
     AzureAIAgent,
     AzureAIAgentThread,
 )
+from azure.ai.projects.aio import AIProjectClient
 
-console = Console()
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.StreamHandler(console.file)],
-)
+import chainlit as cl
 
-
-def is_valid_json(json_string):
-    """
-    Validate if a string is properly formatted JSON.
-
-    Args:
-        json_string (str): The string to validate as JSON
-
-    Returns:
-        bool: True if string is valid JSON, False otherwise
-    """
-    try:
-        json.loads(json_string)
-        return True
-    except json.JSONDecodeError:
-        return False
-
-
-# Initialize environment
-utils.load_dotenv_from_azd()
-utils.set_up_tracing
-utils.set_up_metrics()
-utils.set_up_logging()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(levelname)s:   %(name)s   %(message)s',
-)
+load_dotenv_from_azd()
+tracer = setup_telemetry(__name__)
 logger = logging.getLogger(__name__)
-logging.getLogger('azure.core.pipeline.policies.http_logging_policy').setLevel(logging.WARNING)
-logging.getLogger('azure.monitor.opentelemetry.exporter.export').setLevel(logging.WARNING)
-
-logger.info("Diagnostics: %s", os.getenv('SEMANTICKERNEL_EXPERIMENTAL_GENAI_ENABLE_OTEL_DIAGNOSTICS'))
 
 credential = DefaultAzureCredential()
 
-
 @cl.set_chat_profiles
 async def chat_profile():
-    logging.info("---------------- Loading chat profiles...")
-    async with (
-        credential,
-        AzureAIAgent.create_client(credential=credential) as client,
-    ):
+    logger.info("---------------- Loading chat profiles...")
+    async with AzureAIAgent.create_client(credential=credential) as client:
         return [
             cl.ChatProfile(
                 name=agent.name,
-                markdown_description=agent.description,
+                markdown_description=agent.description if agent.description  else "No description available.",
             )
             async for agent in client.agents.list_agents()
         ]
@@ -76,8 +34,8 @@ async def chat_profile():
 
 @cl.on_chat_start
 async def on_chat_start():
-    logging.info("---------------- Starting chat session...")
-    client = AzureAIAgent.create_client(credential=credential)
+    logger.info("---------------- Starting chat session...")
+    client : AIProjectClient = AzureAIAgent.create_client(credential=credential)
     cl.user_session.set("client", client)
     cl.user_session.set(
         "agents", [agent async for agent in client.agents.list_agents()]
@@ -101,9 +59,9 @@ async def on_chat_start():
 
 @cl.on_message
 async def on_message(message: cl.Message):
-    logging.info(f"---------------- Received message: {message.content}...")
+    logger.info(f"---------------- Received message: {message.content}...")
 
-    client = cl.user_session.get("client")
+    client : AIProjectClient = cl.user_session.get("client")
     agent_definition = cl.user_session.get("agent")
 
     if not client or not agent_definition:
@@ -111,12 +69,13 @@ async def on_message(message: cl.Message):
             content="No agent selected or client not initialized. Please start a chat session.",
         ).send()
         return
+    with tracer.start_as_current_span("chatbot"):
+        agent = AzureAIAgent(client=client, definition=agent_definition)
+        thread: AzureAIAgentThread = cl.user_session.get("thread", None)
 
-    agent = AzureAIAgent(client=client, definition=agent_definition)
-    thread: AzureAIAgentThread = cl.user_session.get("thread", None)
+        response = await agent.get_response(messages=message.content, thread=thread)
+        thread = response.thread
+        cl.user_session.set("thread", thread)
 
-    response = await agent.get_response(messages=message.content, thread=thread)
-    thread = response.thread
-    cl.user_session.set("thread", thread)
+        await cl.Message(content=response.content.content).send()
 
-    await cl.Message(content=response.content.content).send()

@@ -340,7 +340,7 @@ resource aiFoundryAccountAppInsightConnection 'Microsoft.CognitiveServices/accou
   properties: {
     authType: 'ApiKey'
     credentials: {
-      key: appInsightsComponent.outputs.instrumentationKey
+      key: appInsightsComponent.outputs.connectionString
     }
     category: 'AppInsights'
     target: appInsightsComponent.outputs.resourceId
