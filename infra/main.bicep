@@ -197,6 +197,8 @@ var _containerAppsEnvironmentName = !empty(containerAppsEnvironmentName)
   ? containerAppsEnvironmentName
   : take('${abbreviations.appManagedEnvironments}${environmentName}', 60)
 
+var _cosmosDbAccountName = take(toLower(replace('${abbreviations.documentDBDatabaseAccounts}${alphaNumericEnvironmentName}${resourceToken}', '-', '')), 44)
+
 /* ----------------------------- Resource Names ----------------------------- */
 
 // These resources only require uniqueness within resource group
@@ -528,7 +530,7 @@ module app 'modules/app.bicep' = {
 /* module cosmosDbAccount 'br/public:avm/res/document-db/database-account:0.12.0' = {
   name: '${deployment().name}-cosmosDbAccount'
   params: {
-    name: 'dddamin001'
+    name: _cosmosDbAccountName
     location: location
     sqlRoleAssignmentsPrincipalIds: [
       azurePrincipalId
