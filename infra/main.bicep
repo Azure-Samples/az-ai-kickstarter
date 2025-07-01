@@ -341,13 +341,13 @@ resource aiFoundryAccountAppInsightConnection 'Microsoft.CognitiveServices/accou
   name: '${_aiFoundryAccountName}/appInsights-connection'
   properties: {
     authType: 'ApiKey'
+    category: 'AppInsights'
     credentials: {
       key: appInsightsComponent.outputs.connectionString
     }
-    category: 'AppInsights'
     target: appInsightsComponent.outputs.resourceId
     useWorkspaceManagedIdentity: false
-    isSharedToAll: false
+    isSharedToAll: true
     sharedUserList: []
     peRequirement: 'NotRequired'
     peStatus: 'NotApplicable'
