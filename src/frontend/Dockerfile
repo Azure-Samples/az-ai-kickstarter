@@ -32,6 +32,7 @@ RUN uv sync \
 
 COPY app.py /app/
 COPY utils.py /app/
+COPY .chainlit/config.toml /app/.chainlit/
 
 ###############
 # Final image #

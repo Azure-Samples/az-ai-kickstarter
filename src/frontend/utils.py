@@ -34,7 +34,6 @@ from opentelemetry.sdk.trace.export import (
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import set_tracer_provider
 from azure.monitor.opentelemetry import configure_azure_monitor
-from dotenv import load_dotenv
 from opentelemetry import trace
 from opentelemetry.instrumentation.openai_v2 import OpenAIInstrumentor
 from rich.logging import RichHandler
