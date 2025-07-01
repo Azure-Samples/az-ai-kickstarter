@@ -354,6 +354,9 @@ resource aiFoundryAccountAppInsightConnection 'Microsoft.CognitiveServices/accou
       ResourceId: appInsightsComponent.outputs.resourceId
     }
   }
+  dependsOn: [
+    aiFoundryAccount // Ensure the AI Foundry account is created before the project
+  ]
 }
 
 resource aiFoundryAccountProject 'Microsoft.CognitiveServices/accounts/projects@2025-04-01-preview' = {
